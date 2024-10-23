@@ -44,6 +44,10 @@ with open(f'keys/{exp_id}.pkl', 'rb') as f:
 pipe = stable_diffusion_pipe(solver_order=1, model_id=model_id, cache_dir=hf_cache_dir)
 pipe.set_progress_bar_config(disable=True)
 
+#
+print('Loading imgs from', f'results/{exp_id}/{args.test_path}')
+#
+
 cur_inv_order = 0
 var = 1.5
 combined_results = []

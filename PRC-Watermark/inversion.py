@@ -125,8 +125,11 @@ def exact_inversion(
     pipe = pipe.to(device)
 
     # prompt to text embeddings
+    # text_embeddings_tuple = pipe.encode_prompt(
+    #     prompt, 'cuda', 1, guidance_scale > 1.0, None
+    # )
     text_embeddings_tuple = pipe.encode_prompt(
-        prompt, 'cuda', 1, guidance_scale > 1.0, None
+        prompt, device, 1, guidance_scale > 1.0, None
     )
     text_embeddings = torch.cat([text_embeddings_tuple[1], text_embeddings_tuple[0]])
 

@@ -81,7 +81,7 @@ if not os.path.exists(save_folder):
     os.makedirs(save_folder)
 print(f'Saving original images to {save_folder}')
 
-random.seed(42)
+random.seed(44)
 if dataset_id == 'coco':
     with open('coco/captions_val2017.json') as f:
         all_prompts = [ann['caption'] for ann in json.load(f)['annotations']]
@@ -96,8 +96,8 @@ for i, prompt in enumerate(prompts):
 
 print('Keys:')
 if method == 'prc':
-    print(f'Encoding key: {encoding_key}')
-    print(f'Decoding key: {decoding_key}')
+    print(f'Encoding key: {encoding_key}') # (generator_matrix, one_time_pad, test_bits, g, noise_rate) 
+    print(f'Decoding key: {decoding_key}') # (generator_matrix, parity_check_matrix, one_time_pad, false_positive_rate, noise_rate, test_bits, g, max_bp_iter, t)
 
 
 pipe = stable_diffusion_pipe(solver_order=1, model_id=model_id, cache_dir=hf_cache_dir)
@@ -124,29 +124,18 @@ for i in range(2):
         if method == 'prc':
             prc_codeword = Encode(encoding_key)
             init_latents = prc_gaussians.sample(prc_codeword).reshape(1, 4, 64, 64).to(device)
-
             print('\n\nprc_codeword:\n', prc_codeword)
-            print('init_latents:\n', init_latents)
-
-            
-
-           
+            print('prc_codeword.shape:', prc_codeword.shape)
         elif method == 'gs':
             init_latents = gs_watermark.truncSampling(watermark_m)
         elif method == 'tr':
             shape = (1, 4, 64, 64)
             init_latents, _, _ = tr_get_noise(shape, from_file=tr_key, keys_path='keys/')
-
-            #print('init_latents:\n', init_latents)
-
-            
         else:
             raise NotImplementedError
     #
-    fig, ax = plt.subplots(1, 4)
-    for i in range(4):
-        ax[i].imshow(init_latents[0, i].cpu().numpy(), cmap='gray')
         
+    plt.tight_layout()
     plt.show()
     #exit()
 
