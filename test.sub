@@ -1,0 +1,8 @@
+executable = /usr/local/bin/source
+arguments = /fast/mkaut/ma-thesis/install_req.sh
+error = test.err
+output = test.out
+log = test.log
+request_memory = 1024
+request_cpus = 1
+queue
