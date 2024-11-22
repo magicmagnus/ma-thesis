@@ -27,7 +27,7 @@ parser.add_argument('--prc_t', type=int, default=3)
 args = parser.parse_args()
 print(args)
 
-hf_cache_dir = '/home/magnus/hf_models'
+hf_cache_dir = '/home/mkaut/.cache/huggingface/hub'
 device = 'cuda' if torch.cuda.is_available() else 'cpu'
 n = 4 * 64 * 64  # the length of a PRC codeword
 method = args.method
@@ -85,7 +85,7 @@ if not os.path.exists(save_folder):
     os.makedirs(save_folder)
 print(f'Saving original images to {save_folder}')
 
-random.seed(44)
+random.seed(42)
 if dataset_id == 'coco':
     with open('coco/captions_val2017.json') as f:
         all_prompts = [ann['caption'] for ann in json.load(f)['annotations']]
@@ -104,8 +104,8 @@ if method == 'prc':
     print(f'Decoding key: {decoding_key}') # (generator_matrix, parity_check_matrix, one_time_pad, false_positive_rate, noise_rate, test_bits, g, max_bp_iter, t)
 
 
-#pipe = stable_diffusion_pipe(solver_order=1, model_id=model_id, cache_dir=hf_cache_dir)
-#pipe.set_progress_bar_config(disable=True)
+pipe = stable_diffusion_pipe(solver_order=1, model_id=model_id, cache_dir=hf_cache_dir)
+# pipe.set_progress_bar_config(disable=True)
 
 def seed_everything(seed, workers=False):
     os.environ["PL_GLOBAL_SEED"] = str(seed)
@@ -116,8 +116,8 @@ def seed_everything(seed, workers=False):
     os.environ["PL_SEED_WORKERS"] = f"{int(workers)}"
     return seed
 
-for i in range(2):
-# for i in tqdm(range(test_num)):
+# for i in range(2):
+for i in tqdm(range(test_num)):
 
     seed_everything(i)
     current_prompt = prompts[i]
@@ -139,7 +139,7 @@ for i in range(2):
             raise NotImplementedError
     #
         
-    exit()
+    
 
     orig_image, _, _ = generate(prompt=current_prompt,
                                 init_latents=init_latents,

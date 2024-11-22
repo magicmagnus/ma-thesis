@@ -14,3 +14,4 @@ ldpc
 scipy
 matplotlib
 jupyter
+huggingface_hub==0.24.7

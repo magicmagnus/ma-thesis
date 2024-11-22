@@ -119,7 +119,8 @@ def tr_get_noise(shape: Union[torch.Size, List, Tuple], keys_path, from_file: st
 
         fig.suptitle(f'Tree-Ring Watermarking with w_channel={w_channel}, w_radius={w_radius}, w_pattern={w_pattern}')
 
-        plt.show()
+        plt.savefig('watermarking.png')
+        plt.close()
         
         print("min(init_latents):", init_latents.min())
         print("max(init_latents):", init_latents.max())

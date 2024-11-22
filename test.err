@@ -1,0 +1,12 @@
+Traceback (most recent call last):
+  File "/fast/mkaut/ma-thesis/PRC-Watermark/encode.py", line 10, in <module>
+    from src.prc import KeyGen, Encode, str_to_bin, bin_to_str
+  File "/lustre/fast/fast/mkaut/ma-thesis/PRC-Watermark/src/prc.py", line 9, in <module>
+    GF = galois.GF(2)
+  File "/lustre/fast/fast/mkaut/ma-thesis/PRC-Watermark/venv/lib/python3.10/site-packages/galois/_fields/_factory.py", line 247, in GF
+    p, e = factors(order)
+  File "/lustre/fast/fast/mkaut/ma-thesis/PRC-Watermark/venv/lib/python3.10/site-packages/galois/_prime.py", line 822, in factors
+    p, e, n = PrimeFactorsDatabase().fetch(n)
+  File "/lustre/fast/fast/mkaut/ma-thesis/PRC-Watermark/venv/lib/python3.10/site-packages/galois/_databases/_interface.py", line 57, in fetch
+    self.cursor.execute(
+sqlite3.OperationalError: disk I/O error

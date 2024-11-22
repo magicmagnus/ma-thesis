@@ -1,8 +1,28 @@
-# first move to cd
-cd /fast/mkaut/ma-thesis/PRC-Watermark
+# first move the venv to /tmp
+cp -r /fast/mkaut/ma-thesis/PRC-Watermark/venv /tmp
+
+echo "copied venv to /tmp"
+
+cd /tmp/venv
+
+echo "echoing TMP"
+echo $TMP
+echo $TMPDIR
+ls -la
 
 # activate the venv
-source venv/bin/activate
+source bin/activate
 
-# list the installed packages
-pip list
+echo "activated venv"
+
+#reinstall galois
+pip install galois
+
+echo "reinstalled galois"
+
+cd /fast/mkaut/ma-thesis/PRC-Watermark
+
+echo "executing install_req.sh"
+
+
+python /fast/mkaut/ma-thesis/PRC-Watermark/encode.py --method "tr"
