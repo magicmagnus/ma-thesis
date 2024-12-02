@@ -1,0 +1,8 @@
+Error: Unable to determine path to the running Python interpreter. Provide an explicit path or check that your PATH environment variable is correctly set.
+/fast/mkaut/ma-thesis/prc/run_script.sh: line 4: /tmp/venv/bin/activate: No such file or directory
+/fast/mkaut/ma-thesis/prc/run_script.sh: line 10: cd: /fast/mkaut/ma-thesis/PRC-Watermark: No such file or directory
+/home/mkaut/.local/lib/python3.10/site-packages/numba/np/ufunc/parallel.py:371: NumbaWarning: [1mThe TBB threading layer requires TBB version 2021 update 6 or later i.e., TBB_INTERFACE_VERSION >= 12060. Found TBB_INTERFACE_VERSION = 12050. The TBB threading layer is disabled.[0m
+  warnings.warn(problem)
+/home/mkaut/.local/lib/python3.10/site-packages/huggingface_hub/file_download.py:1150: FutureWarning: `resume_download` is deprecated and will be removed in version 1.0.0. Downloads always resume when possible. If you want to force a new download, use `force_download=True`.
+  warnings.warn(
+Loading pipeline components...:   0%|          | 0/6 [00:00<?, ?it/s]Loading pipeline components...:  17%|█▋        | 1/6 [00:00<00:00,  5.22it/s]Loading pipeline components...:  83%|████████▎ | 5/6 [00:00<00:00,  6.57it/s]Loading pipeline components...: 100%|██████████| 6/6 [00:01<00:00,  3.95it/s]Loading pipeline components...: 100%|██████████| 6/6 [00:01<00:00,  4.41it/s]

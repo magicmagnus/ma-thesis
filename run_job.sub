@@ -1,0 +1,10 @@
+executable = /usr/bin/bash
+arguments = /fast/mkaut/ma-thesis/run_script.sh
+error = test.$(Process).err
+output = test.$(Process).out
+log = test.$(Process).log
+request_memory = 8192
+request_disk = 10G
+request_cpus = 1
+request_gpus = 1
+queue
