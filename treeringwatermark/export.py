@@ -27,14 +27,15 @@ class TRWatermark():
                  w_radius=10,
                  w_measurement='l1_complex',
                  w_injection='complex',
-                 w_pattern_const=0
+                 w_pattern_const=0,
+                 hf_cache_dir='/home/mkaut/.cache/huggingface/hub'
     ):
         self.model_id = model_id
         self.inf_steps = inf_steps
         self.test_num_inference_steps = test_num_inference_steps
         self.fpr = fpr
         self.device = 'cuda' if torch.cuda.is_available() else 'cpu'
-        self.hf_cache_dir = '/home/mkaut/.cache/huggingface/hub'
+        self.hf_cache_dir = hf_cache_dir
         self.method = 'tr'
         self.num_images = num_images
         self.guidance_scale = guidance_scale
@@ -168,7 +169,6 @@ class TRWatermark():
         
         if not nowm: # if we want to inject watermark
             init_latents = self.inject_watermark(init_latents)
-            print('Watermark injected')
 
         outputs = self.pipe(
             current_prompt,

@@ -1,0 +1,30 @@
+{ 
+  "method": "tr",
+  "num_images": 12,
+  "model_id": "stabilityai/stable-diffusion-2-1-base",
+  "dataset_id": "coco",
+  "inf_steps": 50,
+  "fpr": 0.01,
+  "guidance_scale": 3.0,
+  "num_images_per_prompt": 1,
+
+  "r_degree": null,
+  "jpeg_ratio": [10, 20, 30],
+  "crop_scale": null,
+  "crop_ratio": null,
+  "gaussian_blur_r": null,
+  "gaussian_std": null,
+  "brightness_factor": null,
+  "rand_aug": null,
+
+  "w_seed": 0,
+  "w_channel": 0,
+  "w_pattern": "rand",
+  "w_mask_shape": "circle",
+  "w_radius": 10,
+  "w_measurement": "l1_complex",
+  "w_injection": "complex",
+  "w_pattern_const": 0,
+
+  "run_name": "tr_jpeg"
+}

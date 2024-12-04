@@ -27,7 +27,8 @@ class PRCWatermark():
                 fpr=0.01,
                 prc_t=3,
                 num_images=10,
-                guidance_scale=3.0
+                guidance_scale=3.0,
+                hf_cache_dir='/home/mkaut/.cache/huggingface/hub'
     ):
         self.model_id = model_id
         self.inf_steps = inf_steps
@@ -35,7 +36,7 @@ class PRCWatermark():
         self.fpr = fpr
         self.prc_t = prc_t
         self.device = 'cuda' if torch.cuda.is_available() else 'cpu'
-        self.hf_cache_dir = '/home/mkaut/.cache/huggingface/hub'
+        self.hf_cache_dir = hf_cache_dir
         self.method = 'prc' # only for path in exp_id
         self.num_images = num_images # only for path in exp_id
         self.n = 4 * 64 * 64  # the length of a PRC codeword
@@ -75,10 +76,8 @@ class PRCWatermark():
         if nowm:
             init_latents_np = np.random.randn(1, 4, 64, 64)
             init_latents = torch.from_numpy(init_latents_np).to(torch.float64).to(self.device)
-            print('Encoding without watermark')
         else:
             init_latents = self.get_encoded_latents(message)
-            print('Encoding with watermark')
         
         img, _, _ = generate(
             prompt=prompt,
@@ -102,12 +101,13 @@ class PRCWatermark():
         reversed_prc = prc_gaussians.recover_posteriors(reversed_latents.to(torch.float64).flatten().cpu(), variances=float(self.var)).flatten().cpu()
         return reversed_prc
     
-    def detect_watermark(self, latents):
-        return Detect(self.decoding_key, latents)
-    
-    def decode_watermark(self, latents):
-        return (Decode(self.decoding_key, latents) is not None)
-    
-    def detect_and_decode_watermark(self, img, prompt=''):
+    def detect_watermark(self, img, prompt=''):
+        # detected, metric, threshold = Detect(self.decoding_key, latents)
         reversed_prc = self.get_inversed_latents(img, prompt)
-        return (self.detect_watermark(reversed_prc), self.decode_watermark(reversed_prc))
+        return Detect(self.decoding_key, reversed_prc)
+    
+    def decode_watermark(self, img, prompt=''):
+        reversed_prc = self.get_inversed_latents(img, prompt)
+        return Decode(self.decoding_key, reversed_prc)
+    
+    

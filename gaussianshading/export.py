@@ -26,7 +26,8 @@ class GSWatermark:
                  ch_factor=1,
                  hw_factor=8,
                  user_number=10000,
-                 guidance_scale=3.0
+                 guidance_scale=3.0,
+                 hf_cache_dir='/home/mkaut/.cache/huggingface/hub'
     ):
         
         self.model_id = model_id
@@ -34,7 +35,7 @@ class GSWatermark:
         self.test_num_inference_steps = test_num_inference_steps
         self.fpr = fpr
         self.device = 'cuda' if torch.cuda.is_available() else 'cpu'
-        self.hf_cache_dir = '/home/mkaut/.cache/huggingface/hub'
+        self.hf_cache_dir = hf_cache_dir
         self.method = 'gs'
         self.num_images = num_images
         self.guidance_scale = guidance_scale
@@ -106,11 +107,9 @@ class GSWatermark:
         if nowm:
             init_latents_np = np.random.randn(1, 4, 64, 64)
             init_latents = torch.from_numpy(init_latents_np).to(torch.float32).to(self.device)
-            print('Encoding without watermark')
         else:
             init_latents = self.gs.truncSampling(self.watermark_m) # inside this, is specifically set to .half()
             init_latents = init_latents.to(torch.float32).to(self.device)
-            print('Encoding with watermark')
     
 
         outputs = self.pipe(

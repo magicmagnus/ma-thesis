@@ -139,7 +139,8 @@ def Detect(decoding_key, posteriors, false_positive_rate=None):
     const = 0.5 * np.sum(np.power(log_plus, 2) + np.power(log_minus, 2) - 0.5 * np.power(log_prod, 2))
     threshold = np.sqrt(2 * const * np.log(1 / fpr)) + 0.5 * log_prod.sum()
 
-    return log_plus.sum() >= threshold
+    # return log_plus.sum() >= threshold
+    return log_plus.sum() >= threshold, log_plus.sum(), threshold
 
 
 ### Decoder
