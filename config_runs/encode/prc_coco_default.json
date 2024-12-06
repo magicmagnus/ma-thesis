@@ -1,6 +1,6 @@
 {
   "method": "prc",
-  "num_images": 12,
+  "num_images": 50,
   "model_id": "stabilityai/stable-diffusion-2-1-base",
   "dataset_id": "coco", 
   "inf_steps": 50,

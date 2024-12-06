@@ -30,8 +30,8 @@ from treeringwatermark.export import TRWatermark
 
 def main(args):
 
-    #HF_CACHE_DIR = '/home/mkaut/.cache/huggingface/hub'
-    HF_CACHE_DIR = '/is/sg2/mkaut/.cache/huggingface/hub'
+    HF_CACHE_DIR = '/home/mkaut/.cache/huggingface/hub'
+    #HF_CACHE_DIR = '/is/sg2/mkaut/.cache/huggingface/hub'
     
     
     print2file(args.log_file, '\n' + '#'*100 + '\n')
@@ -106,8 +106,8 @@ def main(args):
     # for prc
     results_detect_wm = []
     results_detect_nowm = []
-    # results_decode_wm = []
-    # results_decode_nowm = []
+    results_decode_wm = []
+    results_decode_nowm = []
     thrshld_nowm = []
     thrshld_wm = []
 
@@ -166,6 +166,10 @@ def main(args):
                 results_detect_wm.append(detected_wm)
                 thrshld_nowm.append(threshold_nowm)
                 thrshld_wm.append(threshold_wm)
+                decoded_nowm = prc_watermark.decode_watermark(img_nowm_auged)
+                decoded_wm = prc_watermark.decode_watermark(img_wm_auged)
+                results_decode_nowm.append(decoded_nowm)
+                results_decode_wm.append(decoded_wm)
             elif args.method == 'gs':
                 reversed_latents_nowm = gs_watermark.get_inversed_latents(img_nowm_auged, prompt='')
                 reversed_latents_wm = gs_watermark.get_inversed_latents(img_wm_auged, prompt='')
@@ -223,31 +227,37 @@ def main(args):
             low = tpr[index]
             threshold = thresholds[index]
 
-            print2file(args.log_file, f'\n\tTPR: {low} at fpr {args.fpr}')
+            print2file(args.log_file, f'\n\tTPR: {low} at fpr {args.fpr} (empirical)')
             print2file(args.log_file, f'\n(AUC: {auc}; ACC: {acc} at fpr {args.fpr})')
             print2file(args.log_file, f'\nw_metrics: {wm_metrics}')
             print2file(args.log_file, f'no_w_metrics: {no_wm_metrics}')
             print2file(args.log_file, f'\nThreshold: {threshold} with mean wm dist: {np.mean(wm_metrics)} and mean no wm dist: {np.mean(no_wm_metrics)}')
             
-            if args.method == 'gs':
-                tpr_detection, tpr_traceability = gs_watermark.gs.get_tpr()
-                tpr_detection = tpr_detection / args.num_images
-                tpr_traceability = tpr_traceability / args.num_images
-                print2file(args.log_file, f'\n(results from gs_watermark.gs.get_tpr(): TPR Detection: {tpr_detection}; TPR Traceability: {tpr_traceability})')
-
-            if args.method == 'prc':
-                print2file(args.log_file, f'\nAlternative calculation for PRC:')
-                tpr_detection = sum(results_detect_wm) / len(results_detect_wm)
-                print2file(args.log_file, f'\nTPR Detection: \t{tpr_detection} at fpr {args.fpr}' )
-                print2file(args.log_file, f'\nThreshold no wm: {thrshld_nowm}')
-                print2file(args.log_file, f'Threshold wm: {thrshld_wm}')
-                comp_fpr_detect = sum(results_detect_nowm) / len(results_detect_nowm)
-                print2file(args.log_file, f'\nFPR Detection: \t{comp_fpr_detect} at fpr {args.fpr}' )
-                
             # Print all FPR, TPR, and thresholds
-            print2file(args.log_file, '\nDetailed ROC Curve Data:')
+            print2file(args.log_file, '\nDetailed (empirical) ROC Curve Data:')
             for f, t, th in zip(fpr, tpr, thresholds):
                 print2file(args.log_file, f'FPR: {f:.3f}; TPR: {t:.3f}; Threshold: {th:.3f}')
+
+            if args.method == 'gs':
+                print2file(args.log_file, f'\nAlternative Analytical Method (Built-in GS):')
+                tpr_detection_count, tpr_traceability_count = gs_watermark.gs.get_tpr()
+                tpr_detection = tpr_detection_count / args.num_images
+                tpr_traceability = tpr_traceability_count / args.num_images
+                print2file(args.log_file, f'\n\tTPR Detection: {tpr_detection} at fpr {args.fpr}' )
+                print2file(args.log_file, f'\n\tTPR Traceability: {tpr_traceability} at fpr {args.fpr}' )
+
+            if args.method == 'prc':
+                print2file(args.log_file, f'\nAlternative Analytical Method (Built-in PRC):')
+                tpr_detection = sum(results_detect_wm) / len(results_detect_wm)
+                results_decode_wm_sum = [1 if x is not None else 0 for x in results_decode_wm]
+                tpr_decode = results_decode_wm_sum / len(results_decode_wm)
+                print2file(args.log_file, f'\n\tTPR Detection: \t{tpr_detection} at fpr {args.fpr}' )
+                print2file(args.log_file, f'\n\tTPR Decode: \t{tpr_decode} at fpr {args.fpr}' )
+
+                # print2file(args.log_file, f'\nThreshold no wm: {thrshld_nowm}')
+                # print2file(args.log_file, f'Threshold wm: {thrshld_wm}')
+                
+            
 
             results.append({
                 'attack': attack_name,

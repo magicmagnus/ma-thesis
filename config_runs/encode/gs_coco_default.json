@@ -1,5 +1,5 @@
 {
-  "method": "prc",
+  "method": "gs",
   "num_images": 50,
   "model_id": "stabilityai/stable-diffusion-2-1-base",
   "dataset_id": "coco", 
@@ -8,19 +8,13 @@
   "guidance_scale": 3.0,
   "num_images_per_prompt": 1,
 
-  "r_degree": null,
-  "jpeg_ratio": null,
-  "crop_scale": null,
-  "crop_ratio": null,
-  "gaussian_blur_r": null,
-  "gaussian_std": null,
-  "brightness_factor": null,
-  "rand_aug": null,
-
-  "prc_t": 3,
+  "gs_chacha": true,
+  "gs_ch_factor": 1,
+  "gs_hw_factor": 8,
+  "gs_user_number": 1000000,
 
   "reference_model": "ViT-g-14",
   "reference_model_pretrain": "laion2b_s12b_b42k",
 
-  "run_name": "prc_default"
+  "run_name": "gs_default"
 }

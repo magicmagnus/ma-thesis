@@ -1,6 +1,6 @@
 {
   "method": "prc",
-  "num_images": 12,
+  "num_images": 50,
   "model_id": "stabilityai/stable-diffusion-2-1-base",
   "dataset_id": "coco", 
   "inf_steps": 50,
@@ -22,5 +22,5 @@
   "reference_model": "ViT-g-14",
   "reference_model_pretrain": "laion2b_s12b_b42k",
 
-  "run_name": "prc_default"
+  "run_name": "prc_jpeg"
 }
