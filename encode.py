@@ -1,11 +1,11 @@
 import os
-os.environ["CUDA_VISIBLE_DEVICES"] = "0"
+os.environ["CUDA_VISIBLE_DEVICES"] = "7"
 import sys
 import argparse
 import torch
 import pickle
 import json
-
+from PIL import Image
 from tqdm import tqdm
 import random
 import numpy as np
@@ -19,10 +19,14 @@ from prc.export import PRCWatermark
 sys.path.append(os.path.join(os.path.dirname(__file__), 'gaussianshading'))
 from gaussianshading.export import GSWatermark
 
+sys.path.append(os.path.join(os.path.dirname(__file__), 'rid'))
+from ringid.export import RingIDWatermark
+
 sys.path.append(os.path.join(os.path.dirname(__file__), 'treeringwatermark'))
 from treeringwatermark.export import TRWatermark
 import treeringwatermark.open_clip as open_clip
 from treeringwatermark.optim_utils import measure_similarity
+from treeringwatermark.pytorch_fid.fid_score import calculate_fid_given_paths
 
 def print2file(logfile, *args):
     print(*args)
@@ -47,40 +51,13 @@ def main(args):
 
     # first genrate all the keys per method
     if args.method == 'prc':
-        prc_watermark = PRCWatermark(model_id=args.model_id, 
-                                     inf_steps=args.inf_steps, 
-                                     fpr=args.fpr, 
-                                     prc_t=args.prc_t, 
-                                     num_images=args.num_images, 
-                                     guidance_scale=args.guidance_scale,
-                                     hf_cache_dir=HF_CACHE_DIR)
-        
+        prc_watermark = PRCWatermark(args, hf_cache_dir=HF_CACHE_DIR)
     elif args.method == 'gs':
-        gs_watermark = GSWatermark(model_id=args.model_id,
-                                      inf_steps=args.inf_steps,
-                                      fpr=args.fpr,
-                                      num_images=args.num_images,
-                                      chacha=args.gs_chacha,
-                                      ch_factor=args.gs_ch_factor,
-                                      hw_factor=args.gs_hw_factor,
-                                      user_number=args.gs_user_number,
-                                      guidance_scale=args.guidance_scale,
-                                      hf_cache_dir=HF_CACHE_DIR)
+        gs_watermark = GSWatermark(args, hf_cache_dir=HF_CACHE_DIR)
     elif args.method == 'tr':
-        tr_watermark = TRWatermark(model_id=args.model_id,
-                                      inf_steps=args.inf_steps,
-                                      fpr=args.fpr,
-                                      num_images=args.num_images,
-                                      guidance_scale=args.guidance_scale,
-                                      w_seed=args.w_seed,
-                                      w_channel=args.w_channel,
-                                      w_pattern=args.w_pattern,
-                                      w_mask_shape=args.w_mask_shape,
-                                      w_radius=args.w_radius,
-                                      w_measurement=args.w_measurement,
-                                      w_injection=args.w_injection,
-                                      w_pattern_const=args.w_pattern_const,
-                                      hf_cache_dir=HF_CACHE_DIR)
+        tr_watermark = TRWatermark(args, hf_cache_dir=HF_CACHE_DIR)
+    elif args.method == 'rid':
+        rid_watermark = RingIDWatermark(args, hf_cache_dir=HF_CACHE_DIR)
         
     else:
         print2file(args.log_file, 'Invalid method')
@@ -93,11 +70,27 @@ def main(args):
         save_folder = f'./results/{exp_id}'
 
     # create save folders 
-    if not os.path.exists(save_folder):
-        os.makedirs(save_folder)
-        os.makedirs(f'{save_folder}/wm')
-        os.makedirs(f'{save_folder}/nowm')
-    print2file(args.log_file, f'\nSaving original images to {save_folder}')
+
+    # if we are not loading images, create the folders or overwrite them when saving
+    if args.load_images is None:
+        if not os.path.exists(save_folder):
+            os.makedirs(save_folder)
+            os.makedirs(f'{save_folder}/wm')
+            os.makedirs(f'{save_folder}/nowm')
+        print2file(args.log_file, f'\nSaving original images to {save_folder}')
+        # also save the config file
+        with open(f'{save_folder}/config.json', 'w') as f:
+            temp = vars(args).copy()
+            temp.pop('log_file')
+            json.dump(temp, f, indent=4)
+    else: # if we are loading images, just print the folder
+        print2file(args.log_file, f'\nLoading images from {args.load_images}')
+
+    
+    
+
+   
+
 
     # load the prompts
     random.seed(42)
@@ -107,7 +100,10 @@ def main(args):
     else:
         all_prompts = [sample['Prompt'] for sample in load_dataset(args.dataset_id)['test']]
 
+    
+
     prompts = random.sample(all_prompts, args.num_images)
+    #prompts[0] = "tester prompt"
     print2file(args.log_file,  '\nPrompts:')
     for i, prompt in enumerate(prompts):
         print2file(args.log_file, f'{i}: {prompt}')
@@ -122,11 +118,17 @@ def main(args):
 
     def seed_everything(seed, workers=False):
         os.environ["PL_GLOBAL_SEED"] = str(seed)
-        random.seed(seed)
-        np.random.seed(seed)
-        torch.manual_seed(seed)
-        torch.cuda.manual_seed_all(seed)
+        # random.seed(seed)
+        # np.random.seed(seed)
+        # torch.manual_seed(seed)
+        # torch.cuda.manual_seed_all(seed)
         os.environ["PL_SEED_WORKERS"] = f"{int(workers)}"
+        torch.manual_seed(seed + 0)
+        torch.cuda.manual_seed(seed + 1)
+        torch.cuda.manual_seed_all(seed + 2)
+        np.random.seed(seed + 3)
+        torch.cuda.manual_seed_all(seed + 4)
+        random.seed(seed + 5)
         return seed
     
     clip_scores_wm = []
@@ -142,21 +144,28 @@ def main(args):
         seed_everything(1)
 
         current_prompt = prompts[i]
-        for nowm in [0, 1]: # 0 = with watermark, 1 = without watermark
+
+        if args.load_images:
+            nowm_img = Image.open(f'{args.load_images}/nowm/{i}.png')
+            wm_img = Image.open(f'{args.load_images}/wm/{i}.png')
+        else:
+            for nowm in [0, 1]: # 0 = with watermark, 1 = without watermark
+                
+                if args.method == 'prc':
+                    orig_image = prc_watermark.generate_img(current_prompt, nowm=nowm, num_images_per_prompt=args.num_images_per_prompt)
+                elif args.method == 'gs':
+                    orig_image = gs_watermark.generate_img(current_prompt, nowm=nowm, num_images_per_prompt=args.num_images_per_prompt)
+                elif args.method == 'tr':
+                    orig_image = tr_watermark.generate_img(current_prompt, nowm=nowm, num_images_per_prompt=args.num_images_per_prompt)
+                elif args.method == 'rid':
+                    orig_image = rid_watermark.generate_img(current_prompt, nowm=nowm, num_images_per_prompt=args.num_images_per_prompt, pattern_index=args.pattern_index)
             
-            if args.method == 'prc':
-                orig_image = prc_watermark.generate_img(current_prompt, nowm=nowm, num_images_per_prompt=args.num_images_per_prompt)
-            elif args.method == 'gs':
-                orig_image = gs_watermark.generate_img(current_prompt, nowm=nowm, num_images_per_prompt=args.num_images_per_prompt)
-            elif args.method == 'tr':
-                orig_image = tr_watermark.generate_img(current_prompt, nowm=nowm, num_images_per_prompt=args.num_images_per_prompt)
-        
-            if nowm:
-                orig_image.save(f'{save_folder}/nowm/{i}.png')
-                nowm_img = orig_image
-            else:
-                orig_image.save(f'{save_folder}/wm/{i}.png')
-                wm_img = orig_image
+                if nowm:
+                    orig_image.save(f'{save_folder}/nowm/{i}.png')
+                    nowm_img = orig_image
+                else:
+                    orig_image.save(f'{save_folder}/wm/{i}.png')
+                    wm_img = orig_image
         
         # calculate CLIP score between the generated images with and without watermark to the prompt with the reference model
         sims = measure_similarity([nowm_img, wm_img], current_prompt, ref_model, ref_clip_preprocess, ref_tokenizer, device)
@@ -177,53 +186,31 @@ def main(args):
     print2file(args.log_file, f'\nCLIP score without watermark: ')
     print2file(args.log_file, f'\n\t{np.mean(clip_scores_nowm)}')
 
+
+
+    # calculate FID score between the generated images with and without watermark
+    if args.dataset_id == 'coco':
+        if args.load_images:
+            fid_score = calculate_fid_given_paths([f'{args.load_images}/wm', '/is/sg2/mkaut/ma-thesis/coco/val2017_stats.npz'], 50, device, 2048)
+            print2file(args.log_file, f'\nFID score with watermark: {fid_score}')
+            fid_score = calculate_fid_given_paths([f'{args.load_images}/nowm', '/is/sg2/mkaut/ma-thesis/coco/val2017_stats.npz'], 50, device, 2048)
+            print2file(args.log_file, f'\nFID score without watermark: {fid_score}')
+        else:
+            fid_score = calculate_fid_given_paths([f'{save_folder}/wm', '/is/sg2/mkaut/ma-thesis/coco/val2017_stats.npz'], 50, device, 2048) 
+            print2file(args.log_file, f'\nFID score with watermark: {fid_score}')
+            fid_score = calculate_fid_given_paths([f'{save_folder}/nowm', '/is/sg2/mkaut/ma-thesis/coco/val2017_stats.npz'], 50, device, 2048)
+            print2file(args.log_file, f'\nFID score without watermark: {fid_score}')
+    else:
+        pass
+
     print2file(args.log_file, '\n' + '#'*100 + '\n')
 
 
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser()
-
-    # ################### general #######################
-    # parser.add_argument('--num_images', type=int, default=10)
-    # parser.add_argument('--method', type=str, default='prc') # gs, tr, prc
-    # parser.add_argument('--model_id', type=str, default='stabilityai/stable-diffusion-2-1-base')
-    # parser.add_argument('--dataset_id', type=str, default='Gustavosta/Stable-Diffusion-Prompts') # coco 
-    # parser.add_argument('--inf_steps', type=int, default=50)
-    # parser.add_argument('--fpr', type=float, default=0.00001)
-    # parser.add_argument('--guidance_scale', type=float, default=7.5) # in tr, gs = 7.5, prc = 3.0
-    # parser.add_argument('--num_images_per_prompt', type=int, default=1)
-    # parser.add_argument('--run_name', type=str, default='test')
-    
-
-    # ################### per method ####################
-    # args = parser.parse_args()
-    # if args.method == 'prc':
-    #     parser.add_argument('--prc_t', type=int, default=3)
-    # if args.method == 'gs':
-    #     parser.add_argument('--gs_chacha', type=bool, default=True)
-    #     parser.add_argument('--gs_ch_factor', type=int, default=1)
-    #     parser.add_argument('--gs_hw_factor', type=int, default=8)
-    #     parser.add_argument('--gs_user_number', type=int, default=1000000)
-    # if args.method == 'tr':
-    #     parser.add_argument('--w_seed', type=int, default=0)
-    #     parser.add_argument('--w_channel', type=int, default=0)
-    #     parser.add_argument('--w_pattern', type=str, default='rand')
-    #     parser.add_argument('--w_mask_shape', type=str, default='circle')
-    #     parser.add_argument('--w_radius', type=int, default=10)
-    #     parser.add_argument('--w_measurement', type=str, default='l1_complex')
-    #     parser.add_argument('--w_injection', type=str, default='complex')
-    #     parser.add_argument('--w_pattern_const', type=int, default=0)
-    
-
-    # ################### for testing ################### 
-    # # clip related
-    # parser.add_argument('--reference_model', default='ViT-g-14')
-    # parser.add_argument('--reference_model_pretrain', default='laion2b_s12b_b42k')
-    
     parser.add_argument('--config', type=str, required=True, help='Path to configuration file')
     args = parser.parse_args()
-
     
     # Load configurations from the JSON file
     with open(args.config, 'r') as f:
@@ -232,14 +219,11 @@ if __name__ == '__main__':
     # Update args namespace with configurations
     for key, value in config.items():
         setattr(args, key, value)
-
     
     # create a custom folder based on the current time in the name
     date = datetime.datetime.now().strftime("%Y-%m-%d_%H-%M-%S")
-    args.log_dir = f'./experiments/encode_{date}_{args.run_name}'
+    args.log_dir = f'./experiments/{date}_encode_{args.run_name}'
     os.makedirs(args.log_dir)
-
-    
 
     exp_id = f'{args.method}_num_{args.num_images}_steps_{args.inf_steps}_fpr_{args.fpr}_{args.run_name}'
     if args.dataset_id == 'coco':

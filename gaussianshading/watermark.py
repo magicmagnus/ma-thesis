@@ -78,19 +78,23 @@ class Gaussian_Shading_chacha:
         vote[vote > self.threshold] = 1
         return vote
 
-    def eval_watermark(self, reversed_w):
+    def eval_watermark(self, reversed_w, count=True):
         reversed_m = (reversed_w > 0).int()
         reversed_sd = self.stream_key_decrypt(reversed_m.flatten().cpu().numpy())
         reversed_watermark = self.diffusion_inverse(reversed_sd)
         correct = (reversed_watermark == self.watermark).float().mean().item()
-        if correct >= self.tau_onebit:
-            self.tp_onebit_count = self.tp_onebit_count+1
-        if correct >= self.tau_bits:
+        if correct >= self.tau_onebit and count:
+            self.tp_onebit_count = self.tp_onebit_count + 1
+        if correct >= self.tau_bits and count:
             self.tp_bits_count = self.tp_bits_count + 1
         return correct
 
     def get_tpr(self):
         return self.tp_onebit_count, self.tp_bits_count
+    
+    def clear_count(self):
+        self.tp_onebit_count = 0
+        self.tp_bits_count = 0
 
 
 
@@ -151,18 +155,22 @@ class Gaussian_Shading:
         vote[vote > self.threshold] = 1
         return vote
 
-    def eval_watermark(self, reversed_m):
+    def eval_watermark(self, reversed_m, count=True):
         reversed_m = (reversed_m > 0).int()
         reversed_sd = (reversed_m + self.key) % 2
         reversed_watermark = self.diffusion_inverse(reversed_sd)
         correct = (reversed_watermark == self.watermark).float().mean().item()
-        if correct >= self.tau_onebit:
-            self.tp_onebit_count = self.tp_onebit_count+1
-        if correct >= self.tau_bits:
+        if correct >= self.tau_onebit and count:
+            self.tp_onebit_count = self.tp_onebit_count + 1
+        if correct >= self.tau_bits and count:
             self.tp_bits_count = self.tp_bits_count + 1
         return correct
 
     def get_tpr(self):
         return self.tp_onebit_count, self.tp_bits_count
+    
+    def clear_count(self):
+        self.tp_onebit_count = 0
+        self.tp_bits_count = 0
 
 

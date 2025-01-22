@@ -1,0 +1,29 @@
+{
+  "method": "tr",
+  "num_images": 50,
+  "model_id": "stabilityai/stable-diffusion-2-1-base",
+  "dataset_id": "coco",
+  "inf_steps": 50,
+  "test_inf_steps": 50,
+  "fpr": 0.01,
+  "guidance_scale": 3.0,
+  "num_images_per_prompt": 1,
+  "overwrite_attacked_imgs": true,
+  
+  "gaussian_blur_r": [ 6, 8, 10, 12 ],
+
+  "w_seed": 0,
+  "w_channel": 0,
+  "w_radius": 10,
+  "w_mask_shape": "circle",
+
+  "w_injection": "complex",
+  "w_pattern": "rand",
+  "w_measurement": "l1_complex",
+  "w_pattern_const": 0,
+
+  "reference_model": "ViT-g-14",
+  "reference_model_pretrain": "laion2b_s12b_b42k",
+
+  "run_name": "tr_blur"
+}

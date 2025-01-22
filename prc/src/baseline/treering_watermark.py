@@ -72,7 +72,7 @@ def tr_get_noise(shape: Union[torch.Size, List, Tuple], keys_path, from_file: st
 
         init_latents = torch.randn(shape, generator=generator)
         init_latents_orig = init_latents.clone()
-        # plot the init_latents
+        # 1 plot the init_latents
         fig, ax = plt.subplots(5, 4)
         for i in range(4):
             im = ax[0, i].imshow(init_latents[0, i].cpu().numpy(), cmap='OrRd', vmin=-4, vmax=4)
@@ -81,7 +81,7 @@ def tr_get_noise(shape: Union[torch.Size, List, Tuple], keys_path, from_file: st
                 fig.colorbar(im, ax=ax[0, i], orientation='vertical', label='init_latents', location='left')
         ax[0, 0].set_title('init_latents, spatial domain')
     
-        # plot the watermark pattern which is the w_key, already in the frequency domain
+        # 2 plot the watermark pattern which is the w_key, already in the frequency domain
         for i in range(4):
             im = ax[1, i].imshow(w_key[0, i].real.cpu().numpy(), cmap='GnBu', vmin=-50, vmax=50)
             ax[1, i].axis('off')
@@ -93,7 +93,7 @@ def tr_get_noise(shape: Union[torch.Size, List, Tuple], keys_path, from_file: st
         init_latents_fft[w_mask] = w_key[w_mask].clone()
         init_latents = torch.fft.ifft2(torch.fft.ifftshift(init_latents_fft, dim=(-1, -2))).real
 
-        #plot the init_latents_fft after watermarking
+        # 3 plot the init_latents_fft after watermarking
         for i in range(4):
             im = ax[2, i].imshow(init_latents_fft[0, i].real.cpu().numpy(), cmap='GnBu', vmin=-50, vmax=50)
             ax[2, i].axis('off')
@@ -101,7 +101,7 @@ def tr_get_noise(shape: Union[torch.Size, List, Tuple], keys_path, from_file: st
                 fig.colorbar(im, ax=ax[2, i], orientation='vertical', label='init_latents_fft', location='left')
         ax[2, 0].set_title('init_latents_fft after watermarking, frequency domain, (real part)')
     
-        # plot the init_latents after watermarking
+        # 4 plot the init_latents after watermarking
         for i in range(4):
             im = ax[3, i].imshow(init_latents[0, i].cpu().numpy(), cmap='OrRd', vmin=-4, vmax=4)
             ax[3, i].axis('off')
@@ -109,7 +109,7 @@ def tr_get_noise(shape: Union[torch.Size, List, Tuple], keys_path, from_file: st
                 fig.colorbar(im, ax=ax[3, i], orientation='vertical', label='init_latents', location='left')
         ax[3, 0].set_title('init_latents after watermarking, spatial domain')
 
-        # plot the difference between the init_latents before and after watermarking
+        # 6 plot the difference between the init_latents before and after watermarking
         for i in range(4):
             im = ax[4, i].imshow((init_latents - init_latents_orig)[0, i].cpu().numpy(), cmap='RdBu', vmin=-4, vmax=4)
             ax[4, i].axis('off')
