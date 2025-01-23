@@ -214,6 +214,62 @@ def calculate_frechet_distance(mu1, sigma1, mu2, sigma2, eps=1e-6):
     return (diff.dot(diff) + np.trace(sigma1)
             + np.trace(sigma2) - 2 * tr_covmean)
 
+import torch
+from scipy import linalg
+import numpy as np
+
+def calculate_frechet_distance_torch(mu1, sigma1, mu2, sigma2, eps=1e-6):
+    """PyTorch GPU implementation of the Frechet Distance."""
+    # Move to GPU if available
+    device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
+    print(f'Using device: {device}')
+    
+    # Convert to torch tensors
+    mu1 = torch.from_numpy(mu1).to(device)
+    mu2 = torch.from_numpy(mu2).to(device)
+    sigma1 = torch.from_numpy(sigma1).to(device)
+    sigma2 = torch.from_numpy(sigma2).to(device)
+
+    # Ensure correct shapes
+    mu1 = mu1.flatten()
+    mu2 = mu2.flatten()
+    sigma1 = sigma1.view(sigma1.size(0), -1)
+    sigma2 = sigma2.view(sigma2.size(0), -1)
+
+    assert mu1.shape == mu2.shape, 'Training and test mean vectors have different lengths'
+    assert sigma1.shape == sigma2.shape, 'Training and test covariances have different dimensions'
+
+    diff = mu1 - mu2
+
+    # Product might be almost singular
+    # Note: Still using numpy for sqrtm as torch doesn't have direct equivalent
+    covmean_np = linalg.sqrtm(sigma1.cpu().numpy() @ sigma2.cpu().numpy(), disp=False)[0]
+    covmean = torch.from_numpy(covmean_np).to(device)
+
+    if not torch.isfinite(covmean).all():
+        msg = f'fid calculation produces singular product; adding {eps} to diagonal of cov estimates'
+        print(msg)
+        offset = torch.eye(sigma1.size(0), device=device) * eps
+        covmean_np = linalg.sqrtm((sigma1.cpu().numpy() + offset.cpu().numpy()) @ 
+                                 (sigma2.cpu().numpy() + offset.cpu().numpy()))[0]
+        covmean = torch.from_numpy(covmean_np).to(device)
+
+    # Handle complex numbers
+    if torch.is_complex(covmean):
+        if not torch.allclose(torch.diagonal(covmean).imag, 
+                            torch.zeros_like(torch.diagonal(covmean).imag), 
+                            atol=1e-3):
+            m = torch.max(torch.abs(covmean.imag))
+            raise ValueError(f'Imaginary component {m}')
+        covmean = covmean.real
+
+    tr_covmean = torch.trace(covmean)
+
+    fid = (diff @ diff + torch.trace(sigma1) + 
+           torch.trace(sigma2) - 2 * tr_covmean)
+
+    return fid.cpu().numpy()
+
 
 def calculate_activation_statistics(files, model, batch_size=50, dims=2048,
                                     device='cpu', num_workers=1):
@@ -274,7 +330,11 @@ def calculate_fid_given_paths(paths, batch_size, device, dims, num_workers=1, ma
                                         dims, device, num_workers, max_samples)
     m2, s2 = compute_statistics_of_path(paths[1], model, batch_size,
                                         dims, device, num_workers, max_samples)
-    fid_value = calculate_frechet_distance(m1, s1, m2, s2)
+    
+    if torch.cuda.is_available():
+        fid_value = calculate_frechet_distance_torch(m1, s1, m2, s2)
+    else:
+        fid_value = calculate_frechet_distance(m1, s1, m2, s2)
 
     return fid_value
 

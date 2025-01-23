@@ -11,7 +11,8 @@ condor_submit_bid 20 run_job.sub
 
 # monitor the job
 condor_ssh_to_job 15905476.0
-tail -f /proc/1258692/fd/1
+prints PID of the job
+tail -f /proc/[PID]/fd/1
 
 # check the job status
 condor_q mkaut

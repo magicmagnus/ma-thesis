@@ -1,16 +1,18 @@
 import os
 os.environ["CUDA_VISIBLE_DEVICES"] = "7"
 import sys
-import argparse
-import torch
-import pickle
 import json
+import torch
+import random
+import datetime
+import argparse
+import numpy as np
 from PIL import Image
 from tqdm import tqdm
-import random
-import numpy as np
+
 from datasets import load_dataset
-import datetime
+
+from utils import seed_everything, print2file
 
 # Add the source repositories to the path
 sys.path.append(os.path.join(os.path.dirname(__file__), 'prc'))
@@ -28,9 +30,7 @@ import treeringwatermark.open_clip as open_clip
 from treeringwatermark.optim_utils import measure_similarity
 from treeringwatermark.pytorch_fid.fid_score import calculate_fid_given_paths
 
-def print2file(logfile, *args):
-    print(*args)
-    print(file=logfile, *args)
+
 
 def main(args):
     
@@ -63,50 +63,26 @@ def main(args):
         print2file(args.log_file, 'Invalid method')
         return
     
+
     # load dataset
     if args.dataset_id == 'coco':
-        save_folder = f'./results/{exp_id}_coco'
-    else:
-        save_folder = f'./results/{exp_id}'
-
-    # create save folders 
-
-    # if we are not loading images, create the folders or overwrite them when saving
-    if args.load_images is None:
-        if not os.path.exists(save_folder):
-            os.makedirs(save_folder)
-            os.makedirs(f'{save_folder}/wm')
-            os.makedirs(f'{save_folder}/nowm')
-        print2file(args.log_file, f'\nSaving original images to {save_folder}')
-        # also save the config file
-        with open(f'{save_folder}/config.json', 'w') as f:
-            temp = vars(args).copy()
-            temp.pop('log_file')
-            json.dump(temp, f, indent=4)
-    else: # if we are loading images, just print the folder
-        print2file(args.log_file, f'\nLoading images from {args.load_images}')
-
+        exp_id = exp_id + '_coco'
     
-    
+    save_folder = f'./results/{exp_id}'
 
-   
-
-
-    # load the prompts
-    random.seed(42)
+   # load the prompts
+    seed_everything(42)
     if args.dataset_id == 'coco':
         with open('coco/captions_val2017.json') as f:
             all_prompts = [ann['caption'] for ann in json.load(f)['annotations']]
     else:
         all_prompts = [sample['Prompt'] for sample in load_dataset(args.dataset_id)['test']]
-
-    
-
+    # sample the prompts
     prompts = random.sample(all_prompts, args.num_images)
-    #prompts[0] = "tester prompt"
     print2file(args.log_file,  '\nPrompts:')
     for i, prompt in enumerate(prompts):
         print2file(args.log_file, f'{i}: {prompt}')
+
 
     # load the reference CLIP model
     ref_model, _, ref_clip_preprocess = open_clip.create_model_and_transforms(
@@ -116,20 +92,18 @@ def main(args):
         cache_dir=HF_CACHE_DIR)
     ref_tokenizer = open_clip.get_tokenizer(args.reference_model)
 
-    def seed_everything(seed, workers=False):
-        os.environ["PL_GLOBAL_SEED"] = str(seed)
-        # random.seed(seed)
-        # np.random.seed(seed)
-        # torch.manual_seed(seed)
-        # torch.cuda.manual_seed_all(seed)
-        os.environ["PL_SEED_WORKERS"] = f"{int(workers)}"
-        torch.manual_seed(seed + 0)
-        torch.cuda.manual_seed(seed + 1)
-        torch.cuda.manual_seed_all(seed + 2)
-        np.random.seed(seed + 3)
-        torch.cuda.manual_seed_all(seed + 4)
-        random.seed(seed + 5)
-        return seed
+    
+    # create the save folders
+    if not os.path.exists(save_folder):
+        os.makedirs(save_folder)
+        os.makedirs(f'{save_folder}/wm')
+        os.makedirs(f'{save_folder}/nowm')
+    print2file(args.log_file, f'\nSaving original images to {save_folder}')
+    # also save the config file
+    with open(f'{save_folder}/config.json', 'w') as f:
+        temp = vars(args).copy()
+        temp.pop('log_file')
+        json.dump(temp, f, indent=4)
     
     clip_scores_wm = []
     clip_scores_nowm = []
@@ -141,7 +115,7 @@ def main(args):
         wm_img = None
         nowm_img = None
 
-        seed_everything(1)
+        seed_everything(i)
 
         current_prompt = prompts[i]
 
