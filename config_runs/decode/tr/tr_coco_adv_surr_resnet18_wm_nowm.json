@@ -1,5 +1,5 @@
 {
-  "method": "prc",
+  "method": "tr",
   "num_images": 50,
   "model_id": "stabilityai/stable-diffusion-2-1-base",
   "dataset_id": "coco",
@@ -13,12 +13,25 @@
   "calc_FID": false,
   "calc_CLIP": false,
 
-  "jpeg_ratio": [5, 10, 20 ],
+  "adv_surr_resnet18": [2, 4, 6, 8],
+  "adv_surr_model": "resnet18",
+  "adv_surr_method": "nowm_wm",
+  "adv_surr_model_path": null,
+
   
-  "prc_t": 3,
+
+  "w_seed": 0,
+  "w_channel": 0,
+  "w_radius": 10,
+  "w_mask_shape": "circle",
+
+  "w_injection": "complex",
+  "w_pattern": "rand",
+  "w_measurement": "l1_complex",
+  "w_pattern_const": 0,
 
   "reference_model": "ViT-g-14",
   "reference_model_pretrain": "laion2b_s12b_b42k",
 
-  "run_name": "prc_jpeg"
+  "run_name": "tr_adv_surr_resnet18_wm_nowm"
 }

@@ -1,6 +1,6 @@
 {
   "method": "rid",
-  "num_images": 20,
+  "num_images": 200,
   "model_id": "stabilityai/stable-diffusion-2-1-base",
   "dataset_id": "coco", 
   "inf_steps": 50,

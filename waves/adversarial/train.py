@@ -7,6 +7,7 @@ from torchvision.models import resnet18
 from torchvision.transforms import transforms
 from torchvision.datasets import ImageFolder
 from torch.utils.data import DataLoader
+from custom_dataset import TwoPathImageDataset
 import numpy as np
 
 
@@ -20,22 +21,34 @@ def parse_arguments():
         help="Image size",
     )
     parser.add_argument(
-        "--num_class",
+        "--num_classes",
         type=int,
         default=2,
         help="How many classes",
     )
     parser.add_argument(
-        "--train_data_path",
-        type=str,
-        default="./datasets/imagenet_512/train",
-        help="Training images' path.",
+        "--train_ratio",
+        type=float,
+        default=0.8,
+        help="Ratio of data to use for training (rest used for validation)",
     )
     parser.add_argument(
-        "--test_data_path",
+        "--seed",
+        type=int,
+        default=42,
+        help="Random seed for reproducibility",
+    )
+    parser.add_argument(
+        "--train_data_path_class0",
         type=str,
-        default="./datasets/imagenet_512/test",
-        help="Training images' path.",
+        required=True,
+        help="Path to training images for class 0, un-watermarked should be class 0",
+    )
+    parser.add_argument(
+        "--train_data_path_class1", 
+        type=str,
+        required=True,
+        help="Path to training images for class 1, watermarked should be class 1",
     )
     parser.add_argument(
         "--train_size",
@@ -103,7 +116,16 @@ def train_surrogate_classifier(args):
     )
 
     # Load datasets
-    full_train_dataset = ImageFolder(args.train_data_path, transform=transform)
+    #full_train_dataset = ImageFolder(args.train_data_path, transform=transform)
+    full_train_dataset = TwoPathImageDataset(
+        path1=args.train_data_path_class0,
+        path2=args.train_data_path_class1,
+        transform=transform,
+        train=True,
+        train_ratio=args.train_ratio,
+        seed=args.seed
+    )
+
 
     if args.train_size is not None and 0 < args.train_size < len(full_train_dataset):
         indices = np.random.choice(
@@ -121,7 +143,14 @@ def train_surrogate_classifier(args):
     )
 
     if args.do_eval:
-        valid_dataset = ImageFolder(args.test_data_path, transform=transform)
+        valid_dataset = TwoPathImageDataset(
+            path1=args.train_data_path_class0,
+            path2=args.train_data_path_class1,
+            transform=transform,
+            train=False,
+            train_ratio=args.train_ratio,
+            seed=args.seed
+        )
         valid_loader = DataLoader(
             valid_dataset,
             batch_size=args.batch_size,
@@ -131,13 +160,14 @@ def train_surrogate_classifier(args):
         )
 
     print(f"Training on {len(train_dataset)} samples.")
+    print(f"Validation on {len(valid_dataset)} samples.")
 
     # Load pretrained ResNet18 and modify the final layer
     model = resnet18(pretrained=True)
 
-    if model.fc.out_features != args.num_class:
+    if model.fc.out_features != args.num_classes:
         # Modify the final layer only if the number of output features doesn't match
-        model.fc = nn.Linear(model.fc.in_features, args.num_class)
+        model.fc = nn.Linear(model.fc.in_features, args.num_classes)
 
     model = model.to(args.device)
 

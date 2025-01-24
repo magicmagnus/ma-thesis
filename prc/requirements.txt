@@ -19,3 +19,5 @@ scikit-learn
 prettytable
 pymatching
 ftfy
+omegaconf
+torchattacks

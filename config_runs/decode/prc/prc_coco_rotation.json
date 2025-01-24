@@ -8,7 +8,10 @@
   "fpr": 0.01,
   "guidance_scale": 3.0,
   "num_images_per_prompt": 1,
+  
   "overwrite_attacked_imgs": true,
+  "calc_FID": false,
+  "calc_CLIP": false,
 
   "r_degree": [ 35, 75, 90, 120 ],
 

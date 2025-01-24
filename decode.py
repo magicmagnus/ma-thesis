@@ -1,5 +1,5 @@
 import os
-os.environ["CUDA_VISIBLE_DEVICES"] = "1"
+os.environ["CUDA_VISIBLE_DEVICES"] = "0"
 import sys
 import json
 import torch
@@ -68,11 +68,12 @@ def main(args):
     if args.dataset_id == 'coco':
         exp_id = exp_id + '_coco'
 
-    print2file(args.log_file, '\nLoading imgs from', f'results/{exp_id}')
+    print2file(args.log_file, f'\nLoading attacked images from results/{exp_id}')
 
 
     distortions = ['r_degree', 'jpeg_ratio', 'crop_scale', 'crop_ratio', 'gaussian_blur_r', 'gaussian_std', 'brightness_factor', ]
     adversarial_embeds = ['adv_embed_resnet18', 'adv_embed_clip', 'adv_embed_klvae8', 'adv_embed_sdxlvae', 'adv_embed_klvae16']
+    adversarial_surr = ['adv_surr_resnet18']
     attack_vals = [None]
     attack_name = None
     attack_type = None
@@ -91,13 +92,20 @@ def main(args):
             attack_name = arg
             attack_type = 'adversarial_embed'
             break
+        elif getattr(args, arg) is not None and arg in adversarial_surr:
+            print2file(args.log_file, f'\nlooping over {arg}: {getattr(args, arg)}')
+            attack_vals = getattr(args, arg)
+            attack_name = arg
+            attack_type = 'adversarial_surr'
+            break
         else:
             attack_type = None
 
     # start the decoding
     print2file(args.log_file, '\n\nStarting to decode...\n')
     for strength in range(len(attack_vals)):
-       
+        print2file(args.log_file, f'\nAttacktype "{attack_type}" with Attack "{attack_name}": {attack_vals[strength]}' if attack_name is not None else '\n\nNo attack')
+        
         # clear the metrics before each attack
         no_wm_metrics = []
         wm_metrics = []
@@ -117,13 +125,16 @@ def main(args):
             thrshld_nowm = []
             thrshld_wm = []
         
-        print2file(args.log_file, f'\nAttack {attack_name}: {attack_vals[strength]}' if attack_name is not None else '\n\nNo attack')
+        
         for i in tqdm(range(args.num_images)):
             
             seed_everything(i)
            
             # load the attackeg images
-            if attack_type is not None:
+            if attack_type == "adversarial_surr":
+                img_wm_attacked = Image.open(f'results/{exp_id}/wm/{attack_name}_{args.adv_surr_method}/{attack_vals[strength]}/{i}.png')
+                img_nowm_attacked = Image.open(f'results/{exp_id}/nowm/{attack_name}_{args.adv_surr_method}/{attack_vals[strength]}/{i}.png')
+            elif attack_type is not None:
                 img_wm_attacked = Image.open(f'results/{exp_id}/wm/{attack_name}/{attack_vals[strength]}/{i}.png')
                 img_nowm_attacked = Image.open(f'results/{exp_id}/nowm/{attack_name}/{attack_vals[strength]}/{i}.png')
             else:

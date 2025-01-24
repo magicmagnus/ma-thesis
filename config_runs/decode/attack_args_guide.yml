@@ -1,5 +1,9 @@
 
-overwrite_attacked_imgs: true  # self-explanatory
+
+overwrite_attacked_imgs: true, # if true, load raw, generate attacked, save attacked
+                        false, # if false, load pre-attacked, 
+calc_FID: false,        # if true, calculate FID
+calc_CLIP: false,       # if true, calculate CLIP
 
 # Attacks
 
@@ -21,4 +25,16 @@ adv_embed_clip: [2, 4, 6, 8]
 adv_embed_klvae8: [2, 4, 6, 8]
 adv_embed_sdxlvae: [2, 4, 6, 8]
 adv_embed_klvae16: [2, 4, 6, 8]
+
+# Adv. Surrogate classifiers
+adv_surr_resnet18: [2, 4, 6, 8],
+adv_surr_resnet18_path: "path/to/adv_cls_surr_resnet18.pth"
+
+
+
+
+# CLIP model
+reference_model: "ViT-g-14",                    # CLIP model to use
+reference_model_pretrain: "laion2b_s12b_b42k",  # CLIP model pretrain to use, from huggingface (?)
+  
 

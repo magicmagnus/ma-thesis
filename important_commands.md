@@ -19,3 +19,28 @@ condor_q mkaut
 
 # stop a job
 condor_rm 15905476.0
+
+
+## encodeing, decodeing and attacking
+- encode.py
+    - gets encoding/conf.yml file with watermark parameters
+    - generates 2 sets of images, wm and no_wm
+    - saves both sets for decoding or attacking
+
+- attack_images.py
+    - gets decoding/conf.yml file with watermark parameters, and attack parameters
+    - 2 modes, either load pre-attacked images or attack raw images and save them
+        either "overwrite_attacked_imgs" = False or True
+        if False:
+        - loads already attacked images, to wm_attacked and no_wm_attacked
+        if True:
+        - loads 2 sets of raw images, 
+        - generates 2 sets of attacked of images, to wm_attacked and no_wm_attacked
+        - saves both attacked sets for decoding
+    - calculates FID and CLIP score metrics for wm_attacked and no_wm_attacked, 
+
+- decode.py:
+    - gets same decoding/conf.yml file with watermark parameters, and attack parameters
+    - gets 2 sets of attacked images, wm_attacked and no_wm_attacked
+    - calculates inversed latents from given images,
+    - checks for watermark, calculates metric

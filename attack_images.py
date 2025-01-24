@@ -22,6 +22,7 @@ from treeringwatermark.pytorch_fid.fid_score import calculate_fid_given_paths
 
 sys.path.append(os.path.join(os.path.dirname(__file__), 'waves', 'adversarial'))
 from waves.adversarial.embedding import adv_emb_attack_custom 
+from waves.adversarial.surrogate import adv_surrogate_model_attack
 
 CALC_FID = True
 CALC_CLIP = True
@@ -46,7 +47,15 @@ def main(args):
     if args.dataset_id == 'coco':
         exp_id = exp_id + '_coco'
 
-    print2file(args.log_file, '\nLoading imgs from', f'results/{exp_id}')
+
+    if args.overwrite_attacked_imgs: 
+        # load raw, then attack and save the images
+        print2file(args.log_file, f'\nLoading raw images from results/{exp_id}')
+        print2file(args.log_file, f'\nOverwriting attacked images in results/{exp_id}')
+    else:
+        # load attacked images, only calculate the scores
+        print2file(args.log_file, f'\nLoading attacked images from results/{exp_id}')
+    
 
 
     # load the prompts
@@ -62,18 +71,20 @@ def main(args):
     for i, prompt in enumerate(prompts):
         print2file(args.log_file, f'{i}: {prompt}')
 
-
-    # load the reference CLIP model
-    ref_model, _, ref_clip_preprocess = open_clip.create_model_and_transforms(
-        args.reference_model, 
-        pretrained=args.reference_model_pretrain, 
-        device=device,
-        cache_dir=HF_CACHE_DIR)
-    ref_tokenizer = open_clip.get_tokenizer(args.reference_model)
+    if args.calc_CLIP:
+        # load the reference CLIP model
+        print2file(args.log_file, f'\nLoading reference CLIP model {args.reference_model}')
+        ref_model, _, ref_clip_preprocess = open_clip.create_model_and_transforms(
+            args.reference_model, 
+            pretrained=args.reference_model_pretrain, 
+            device=device,
+            cache_dir=HF_CACHE_DIR)
+        ref_tokenizer = open_clip.get_tokenizer(args.reference_model)
     
     
     distortions = ['r_degree', 'jpeg_ratio', 'crop_scale', 'crop_ratio', 'gaussian_blur_r', 'gaussian_std', 'brightness_factor', ]
     adversarial_embeds = ['adv_embed_resnet18', 'adv_embed_clip', 'adv_embed_klvae8', 'adv_embed_sdxlvae', 'adv_embed_klvae16']
+    adversarial_surr = ['adv_surr_resnet18', 'adv_surr_clip', 'adv_surr_klvae8', 'adv_surr_sdxlvae', 'adv_surr_klvae16']
     attack_vals = [None]
     attack_name = None
     attack_type = None
@@ -92,43 +103,138 @@ def main(args):
             attack_name = arg
             attack_type = 'adversarial_embed'
             break
+        elif getattr(args, arg) is not None and arg in adversarial_surr:
+            print2file(args.log_file, f'\nlooping over {arg}: {getattr(args, arg)}')
+            attack_vals = getattr(args, arg)
+            attack_name = arg
+            attack_type = 'adversarial_surr'
+            break
         else:
-            attack_type = None
+            continue
+            
 
     # start the attacks
     print2file(args.log_file, '\n\nStarting to attack...\n')
     for strength in range(len(attack_vals)):
-       
-        # saved attacked images in the results/attack_name/attack_val folder
+        print2file(args.log_file, f'\nAttacktype "{attack_type}" with Attack "{attack_name}": {attack_vals[strength]}' if attack_name is not None else '\n\nNo attack')
+        
+        # saved new attacked images in or load pre-attacked images from the results/attack_name/attack_val folder
         path_attack_wm = f'results/{exp_id}/wm/{attack_name}/{attack_vals[strength]}'
         path_attack_nowm = f'results/{exp_id}/nowm/{attack_name}/{attack_vals[strength]}'
-        os.makedirs(path_attack_wm, exist_ok=True)
-        os.makedirs(path_attack_nowm, exist_ok=True)
+        
 
         clip_scores_wm = []
         clip_scores_nowm = []
 
-        print2file(args.log_file, f'\nAttack {attack_name}: {attack_vals[strength]}' if attack_name is not None else '\n\nNo attack')
-        for i in tqdm(range(args.num_images)):
+        seed_everything(strength)
 
-            seed_everything(i)
+        # load raw imgs and genrete attacked images
+        if args.overwrite_attacked_imgs:
+            print2file(args.log_file, f'\nAttacking images...')
+            
+            if attack_type == 'adversarial_surr':
+                # attack the wm images to be classified as nowm (label 0), and the nowm images to be classified as wm (label 1)
+                print2file(args.log_file, f'\nAttacking with adversarial surrogate model...')
 
-            img_wm = Image.open(f'results/{exp_id}/wm/{i}.png')
-            img_nowm = Image.open(f'results/{exp_id}/nowm/{i}.png')
+                # class 0 and class 1 paths depend on the adv_surr_method
+                if args.adv_surr_method == "nowm_wm":
+                    path_class0 = f'results/{exp_id}/nowm'
+                    path_class1 = f'results/{exp_id}/wm'
+                elif args.adv_surr_method == "real_wm":
+                    path_class0 = f'coco/val2017'
+                    path_class1 = f'results/{exp_id}/wm'
+                elif args.adv_surr_method == "wm1_wm2":
+                    # TODO 
+                    pass
 
-            if attack_type == 'distortion' or attack_type is None:
-                img_wm_attacked, img_nowm_attacked = image_distortion(img_wm, img_nowm, i, args, strength, i==0)
-            elif attack_type == 'adversarial_embed':
-                img_wm_attacked = adv_emb_attack_custom(img_wm, attack_name, attack_vals[strength], device)
-                img_nowm_attacked = adv_emb_attack_custom(img_nowm, attack_name, attack_vals[strength], device)
-            img_wm_attacked.save(os.path.join(path_attack_wm, f'{i}.png'))
-            img_nowm_attacked.save(os.path.join(path_attack_nowm, f'{i}.png'))
+                
+                if args.adv_surr_model_path is None:
+                    model_path = os.path.join('results', exp_id, f'adv_cls_{args.method}_{args.adv_surr_method}.pth')
+                else:
+                    model_path = args.adv_surr_model_path
 
-            # clip scores
-            sims = measure_similarity([img_nowm_attacked, img_wm_attacked], prompts[i], ref_model, ref_clip_preprocess, ref_tokenizer, device)
-            clip_scores_nowm.append(sims[0].item())
-            clip_scores_wm.append(sims[1].item())
-        print2file(args.log_file, '\nFinished attacking images')
+                print2file(args.log_file, f'\nLoading images from {path_class0} and {path_class1}')
+
+                # for adv_surr, the path names are slightly different
+                path_attack_wm = f'results/{exp_id}/wm/{attack_name}_{args.adv_surr_method}/{attack_vals[strength]}'
+                path_attack_nowm = f'results/{exp_id}/nowm/{attack_name}_{args.adv_surr_method}/{attack_vals[strength]}'
+                os.makedirs(path_attack_wm, exist_ok=True)
+                os.makedirs(path_attack_nowm, exist_ok=True)
+                for f in os.listdir(path_attack_wm):
+                    os.remove(os.path.join(path_attack_wm, f))
+                for f in os.listdir(path_attack_nowm):
+                    os.remove(os.path.join(path_attack_nowm, f))
+                print2file(args.log_file, f'\nOverwriting attacked images in {path_attack_wm} and {path_attack_nowm}')
+                
+                # attack class 0 to be classified as class 1
+                adv_surrogate_model_attack(
+                    data_path=path_class0,
+                    model_path=model_path,
+                    strength=attack_vals[strength],
+                    output_path=path_attack_nowm, # attacked nowm images, so save attack here
+                    target_label=1,
+                    batch_size=(32 if args.num_images > 32 else args.num_images),
+                    warmup=True,
+                    device=device,
+                )
+                # attack class 1 to be classified as class 0
+                adv_surrogate_model_attack(
+                    data_path=path_class1,
+                    model_path=model_path,
+                    strength=attack_vals[strength],
+                    output_path=path_attack_wm, # attacked wm images, so save attack here
+                    target_label=0,
+                    batch_size=(32 if args.num_images > 32 else args.num_images),
+                    warmup=True,
+                    device=device,
+                )
+
+            else:
+                os.makedirs(path_attack_wm, exist_ok=True)
+                os.makedirs(path_attack_nowm, exist_ok=True)
+                for f in os.listdir(path_attack_wm):
+                    os.remove(os.path.join(path_attack_wm, f))
+                for f in os.listdir(path_attack_nowm):
+                    os.remove(os.path.join(path_attack_nowm, f))
+                print2file(args.log_file, f'\nOverwriting attacked images in {path_attack_wm} and {path_attack_nowm}')
+                
+                # only loop per-image for non-surrogate attacks
+                for i in tqdm(range(args.num_images)):
+
+                    seed_everything(i)
+
+                    img_wm = Image.open(f'results/{exp_id}/wm/{i}.png')
+                    img_nowm = Image.open(f'results/{exp_id}/nowm/{i}.png')
+
+                    if attack_type == 'distortion' or attack_type is None:
+                        img_wm_attacked, img_nowm_attacked = image_distortion(img_wm, img_nowm, i, args, strength, i==0)
+                    elif attack_type == 'adversarial_embed':
+                        img_wm_attacked = adv_emb_attack_custom(img_wm, attack_name, attack_vals[strength], device)
+                        img_nowm_attacked = adv_emb_attack_custom(img_nowm, attack_name, attack_vals[strength], device)
+                    img_wm_attacked.save(os.path.join(path_attack_wm, f'{i}.png'))
+                    img_nowm_attacked.save(os.path.join(path_attack_nowm, f'{i}.png'))
+
+                    # clip scores
+                    if args.calc_CLIP:
+                        sims = measure_similarity([img_nowm_attacked, img_wm_attacked], prompts[i], ref_model, ref_clip_preprocess, ref_tokenizer, device)
+                        clip_scores_nowm.append(sims[0].item())
+                        clip_scores_wm.append(sims[1].item())
+            print2file(args.log_file, '\nFinished attacking images')
+        # load pre-attacked images, calculate the scores
+        else:
+            # check that the attacked images exist, if not, raise an error
+            if not os.path.exists(path_attack_wm) or not os.path.exists(path_attack_nowm):
+                raise FileNotFoundError(f'Attacked images not found in {path_attack_wm} or {path_attack_nowm}')
+            print2file(args.log_file, f'\nLoading attacked images from {path_attack_wm} and {path_attack_nowm}')
+
+            if args.calc_CLIP:
+                # also loop per-image, to calculate the clip scores
+                for i in tqdm(range(args.num_images)):
+                    img_wm = Image.open(f'{path_attack_wm}/{i}.png')
+                    img_nowm = Image.open(f'{path_attack_nowm}/{i}.png')
+                    sims = measure_similarity([img_nowm, img_wm], prompts[i], ref_model, ref_clip_preprocess, ref_tokenizer, device)
+                    clip_scores_nowm.append(sims[0].item())
+                    clip_scores_wm.append(sims[1].item())
 
         fid_score_wm = None
         fid_score_nowm = None
@@ -136,7 +242,7 @@ def main(args):
         clip_score_nowm = None
         
 
-        if CALC_FID:
+        if args.calc_FID:
             # measure the FID between original and attacked images, both with and without watermark
             fid_score_wm = calculate_fid_given_paths([path_attack_wm, '/is/sg2/mkaut/ma-thesis/coco/val2017'], 
                                                     batch_size=50, 
@@ -159,7 +265,7 @@ def main(args):
             print2file(args.log_file, f'\nFID score with watermark for attack {attack_name}={attack_vals[strength]} for {args.num_images} samples: \n\n\t{fid_score_wm}')
             print2file(args.log_file, f'\nFID score without watermark for attack {attack_name}={attack_vals[strength]} for {args.num_images} samples: \n\n\t{fid_score_nowm}')
 
-        if CALC_CLIP:
+        if args.calc_CLIP:
             # calculate CLIP score between the generated images with and without watermark to the prompt with the reference model
             clip_score_wm = np.mean(clip_scores_wm)
             clip_score_nowm = np.mean(clip_scores_nowm)

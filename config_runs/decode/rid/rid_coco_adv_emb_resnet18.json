@@ -8,9 +8,12 @@
   "fpr": 0.01,
   "guidance_scale": 3.0,
   "num_images_per_prompt": 1,
+  
   "overwrite_attacked_imgs": true,
+  "calc_FID": false,
+  "calc_CLIP": false,
 
-  "adv_embed_klvae8": [2, 4, 6, 8],
+  "adv_embed_resnet18": [2, 4, 6, 8],
 
   "radius": 14,
   "radius_cutoff": 3,
@@ -32,5 +35,5 @@
   "reference_model": "ViT-g-14",
   "reference_model_pretrain": "laion2b_s12b_b42k",
   
-  "run_name": "rid_emb_klvae8"
+  "run_name": "rid_emb_resnet18"
 }

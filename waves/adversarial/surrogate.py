@@ -61,6 +61,7 @@ def adv_surrogate_model_attack(
     strength,
     output_path,
     target_label,
+    batch_size,
     warmup=True,
     device=torch.device("cuda:0"),
 ):
@@ -79,7 +80,7 @@ def adv_surrogate_model_attack(
     model.load_state_dict(torch.load(save_path_full))
     model = model.to(device)
     model.eval()
-    print("Model loaded!")
+    print(f"Model loaded from {save_path_full}")
 
     # load data
     transform = transforms.ToTensor()
@@ -90,7 +91,8 @@ def adv_surrogate_model_attack(
     test_loader = DataLoader(
         dataset, batch_size=batch_size, shuffle=False, num_workers=4, pin_memory=True
     )
-    print("Data loaded!")
+    print(f"Data loaded from {data_path}")
+    print(f"Target label: {target_label}")
 
     # warm up
     if warmup:
@@ -145,6 +147,7 @@ def adv_surrogate_model_attack(
         # save images
         for img_adv, image_path in zip(images_adv, image_paths):
             save_path = os.path.join(output_path, os.path.basename(image_path))
+            print(f"Saving image to {save_path}")
             save_image(img_adv, save_path)
 
     print("Attack finished!")
