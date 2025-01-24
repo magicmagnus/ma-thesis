@@ -61,6 +61,8 @@ def main(args):
     args_train.do_eval = True
     args_train.normalize = True
     args_train.device = device
+    args_train.log_file = args.log_file
+    args_train.log_dir = args.log_dir
 
     train_surrogate_classifier(args_train)
 

@@ -10,6 +10,9 @@ from torch.utils.data import DataLoader
 from custom_dataset import TwoPathImageDataset
 import numpy as np
 
+def print2file(logfile, *args):
+    print(*args)
+    print(file=logfile, *args)
 
 def parse_arguments():
     parser = argparse.ArgumentParser(description="Train surrogate watermark clasifier.")
@@ -159,8 +162,8 @@ def train_surrogate_classifier(args):
             pin_memory=True,
         )
 
-    print(f"Training on {len(train_dataset)} samples.")
-    print(f"Validation on {len(valid_dataset)} samples.")
+    print2file(args.log_file, f"Training on {len(train_dataset)} samples.")
+    print2file(args.log_file, f"Validation on {len(valid_dataset)} samples.")
 
     # Load pretrained ResNet18 and modify the final layer
     model = resnet18(pretrained=True)
@@ -205,7 +208,7 @@ def train_surrogate_classifier(args):
 
         train_loss = total_loss / len(train_loader)
         train_accuracy = 100 * correct / total
-        print(
+        print2file(args.log_file, 
             f"Epoch [{epoch + 1}/{args.num_epochs}], Training Loss: {train_loss:.4f}, Training Accuracy: {train_accuracy:.2f}%"
         )
 
@@ -223,17 +226,17 @@ def train_surrogate_classifier(args):
                     correct += (predicted == labels).sum().item()
 
             val_accuracy = 100 * correct / total
-            print(f"Validation Accuracy: {val_accuracy:.2f}%")
+            print2file(args.log_file, f"Validation Accuracy: {val_accuracy:.2f}%")
 
             # Update best validation accuracy and model state
             if val_accuracy > best_val_accuracy:
                 best_val_accuracy = val_accuracy
                 best_model_state = model.state_dict().copy()  # Copy the model state
-                print(
+                print2file(args.log_file, 
                     f"New best model found at epoch {epoch + 1} with validation accuracy: {val_accuracy:.2f}%"
                 )
 
-    print("Training complete!")
+    print2file(args.log_file, "Training complete!")
 
     # Save the entire model
     # Save the best model based on validation accuracy
@@ -242,7 +245,7 @@ def train_surrogate_classifier(args):
             args.model_save_path, args.model_save_name + ".pth"
         )
         torch.save(best_model_state, save_path_best)
-        print(
+        print2file(args.log_file, 
             f"Best model saved to {save_path_best} with validation accuracy: {best_val_accuracy:.2f}%"
         )
     else:
@@ -250,13 +253,13 @@ def train_surrogate_classifier(args):
             args.model_save_path, args.model_save_name + ".pth"
         )
         torch.save(model.state_dict(), save_path_full)
-        print(f"Entire model saved to {save_path_full}")
+        print2file(args.log_file, f"Entire model saved to {save_path_full}")
     return
 
 
 if __name__ == "__main__":
     args = parse_arguments()
-    print(args)
+    print2file(args.log_file, args)
 
     os.makedirs(args.model_save_path, exist_ok=True)
     train_surrogate_classifier(args)
