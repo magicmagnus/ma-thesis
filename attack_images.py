@@ -179,6 +179,7 @@ def main(args):
                     batch_size=(32 if args.num_images > 32 else args.num_images),
                     warmup=True,
                     device=device,
+                    args=args,
                 )
                 # attack class 1 to be classified as class 0
                 adv_surrogate_model_attack(
@@ -190,6 +191,7 @@ def main(args):
                     batch_size=(32 if args.num_images > 32 else args.num_images),
                     warmup=True,
                     device=device,
+                    args=args,
                 )
 
             else:

@@ -11,8 +11,10 @@ echo "reinstalled required packages"
 cd /fast/mkaut/ma-thesis/
 
 # encode.py
-python encode.py --config "config_runs/encode/prc_coco_default.json"
-python decode.py --config "config_runs/decode/prc_coco_jpeg.json" 
+# python encode.py --config "config_runs/encode/rid/rid_coco_default.json"
+# python attack_train_surrogate.py --config "config_runs/decode/rid/rid_coco_adv_surr_resnet18_wm_nowm.json"
+python attack_images.py --config "config_runs/decode/rid/rid_coco_adv_surr_resnet18_wm_nowm.json"
+# python decode.py --config "config_runs/decode/gs/gs_coco_jpeg.json" 
 
 
 

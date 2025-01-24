@@ -15,6 +15,10 @@ ALPHA_FACTOR = 0.05
 N_STEPS = 200
 BATCH_SIZE = 4
 
+def print2file(logfile, *args):
+    print(*args)
+    print(file=logfile, *args)
+
 
 def parse_arguments():
     parser = argparse.ArgumentParser(
@@ -64,6 +68,7 @@ def adv_surrogate_model_attack(
     batch_size,
     warmup=True,
     device=torch.device("cuda:0"),
+    args=None,
 ):
     # check if the file/directory paths exist
     for path in [data_path, model_path, output_path]:
@@ -80,7 +85,7 @@ def adv_surrogate_model_attack(
     model.load_state_dict(torch.load(save_path_full))
     model = model.to(device)
     model.eval()
-    print(f"Model loaded from {save_path_full}")
+    print2file(args.log_file, f"Model loaded from {save_path_full}")
 
     # load data
     transform = transforms.ToTensor()
@@ -91,8 +96,8 @@ def adv_surrogate_model_attack(
     test_loader = DataLoader(
         dataset, batch_size=batch_size, shuffle=False, num_workers=4, pin_memory=True
     )
-    print(f"Data loaded from {data_path}")
-    print(f"Target label: {target_label}")
+    print2file(args.log_file, f"Data loaded from {data_path}")
+    print2file(args.log_file, f"Target label: {target_label}")
 
     # warm up
     if warmup:
@@ -122,7 +127,7 @@ def adv_surrogate_model_attack(
 
         average_delta = torch.cat(average_delta_list, dim=0).mean(dim=0)
 
-        print("Warmup finished!")
+        print2file(args.log_file, "Warmup finished!")
     else:
         average_delta = None
 
@@ -147,10 +152,10 @@ def adv_surrogate_model_attack(
         # save images
         for img_adv, image_path in zip(images_adv, image_paths):
             save_path = os.path.join(output_path, os.path.basename(image_path))
-            print(f"Saving image to {save_path}")
+            # print2file(args.log_file, f"Saving image to {save_path}")
             save_image(img_adv, save_path)
 
-    print("Attack finished!")
+    print2file(args.log_file, "Attack finished!")
     return
 
 

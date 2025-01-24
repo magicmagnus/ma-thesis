@@ -126,7 +126,8 @@ def train_surrogate_classifier(args):
         transform=transform,
         train=True,
         train_ratio=args.train_ratio,
-        seed=args.seed
+        seed=args.seed,
+        args=args
     )
 
 
@@ -152,7 +153,8 @@ def train_surrogate_classifier(args):
             transform=transform,
             train=False,
             train_ratio=args.train_ratio,
-            seed=args.seed
+            seed=args.seed,
+            args=args
         )
         valid_loader = DataLoader(
             valid_dataset,

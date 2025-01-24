@@ -1,6 +1,6 @@
 {
   "method": "rid",
-  "num_images": 20,
+  "num_images": 200,
   "model_id": "stabilityai/stable-diffusion-2-1-base",
   "dataset_id": "coco",
   "inf_steps": 50,
@@ -12,6 +12,11 @@
   "overwrite_attacked_imgs": true,
   "calc_FID": false,
   "calc_CLIP": false,
+
+  "adv_surr_resnet18": [2, 4, 6, 8],
+  "adv_surr_model": "resnet18",
+  "adv_surr_method": "nowm_wm",
+  "adv_surr_model_path": "results/rid_num_200_steps_50_fpr_0.01_coco/adv_cls_rid_nowm_wm.pth",
 
   "radius": 14,
   "radius_cutoff": 3,

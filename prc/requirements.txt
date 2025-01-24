@@ -20,4 +20,4 @@ prettytable
 pymatching
 ftfy
 omegaconf
-torchattacks
+torchattacks==3.5.1
