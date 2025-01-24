@@ -35,35 +35,37 @@ from treeringwatermark.pytorch_fid.fid_score import calculate_fid_given_paths
 
 def main(args):
     
-    # depending on the server, the cache dir might be different
-    #HF_CACHE_DIR = '/home/mkaut/.cache/huggingface/hub' 
-    HF_CACHE_DIR = '/is/sg2/mkaut/.cache/huggingface/hub'
+    if "is/sg2" in os.getcwd():
+        HF_CACHE_DIR = '/is/sg2/mkaut/.cache/huggingface/hub'
+    else:
+        HF_CACHE_DIR = '/home/mkaut/.cache/huggingface/hub'
 
     device = 'cuda' if torch.cuda.is_available() else 'cpu'
 
     print2file(args.log_file, '\n' + '#'*100 + '\n')
-    print2file(args.log_file, '\nStarting encode...')
+    print2file(args.log_file, '\nStarting Encode...')
     print2file(args.log_file, '\nArgs:\n')
     for arg in vars(args):
         print2file(args.log_file, f'{arg}: {getattr(args, arg)}')
-
 
     exp_id = f'{args.method}_num_{args.num_images}_steps_{args.inf_steps}_fpr_{args.fpr}'
 
     # first genrate all the keys per method
     if args.method == 'prc':
         prc_watermark = PRCWatermark(args, hf_cache_dir=HF_CACHE_DIR)
+        encoder = prc_watermark
     elif args.method == 'gs':
         gs_watermark = GSWatermark(args, hf_cache_dir=HF_CACHE_DIR)
+        encoder = gs_watermark
     elif args.method == 'tr':
         tr_watermark = TRWatermark(args, hf_cache_dir=HF_CACHE_DIR)
+        encoder = tr_watermark
     elif args.method == 'rid':
         rid_watermark = RingIDWatermark(args, hf_cache_dir=HF_CACHE_DIR)
-        
+        encoder = rid_watermark
     else:
         print2file(args.log_file, 'Invalid method')
         return
-    
 
     # load dataset
     if args.dataset_id == 'coco':
@@ -86,6 +88,7 @@ def main(args):
 
 
     # load the reference CLIP model
+    print2file(args.log_file, f'\nLoading reference CLIP model {args.reference_model}')
     ref_model, _, ref_clip_preprocess = open_clip.create_model_and_transforms(
         args.reference_model, 
         pretrained=args.reference_model_pretrain, 
@@ -113,70 +116,65 @@ def main(args):
     print2file(args.log_file, '\n\nStarting to generate images...\n')
     for i in tqdm(range(args.num_images)):
     
-        wm_img = None
-        nowm_img = None
-
         seed_everything(i)
 
         current_prompt = prompts[i]
-
-        if args.load_images:
-            nowm_img = Image.open(f'{args.load_images}/nowm/{i}.png')
-            wm_img = Image.open(f'{args.load_images}/wm/{i}.png')
-        else:
-            for nowm in [0, 1]: # 0 = with watermark, 1 = without watermark
-                
-                if args.method == 'prc':
-                    orig_image = prc_watermark.generate_img(current_prompt, nowm=nowm, num_images_per_prompt=args.num_images_per_prompt)
-                elif args.method == 'gs':
-                    orig_image = gs_watermark.generate_img(current_prompt, nowm=nowm, num_images_per_prompt=args.num_images_per_prompt)
-                elif args.method == 'tr':
-                    orig_image = tr_watermark.generate_img(current_prompt, nowm=nowm, num_images_per_prompt=args.num_images_per_prompt)
-                elif args.method == 'rid':
-                    orig_image = rid_watermark.generate_img(current_prompt, nowm=nowm, num_images_per_prompt=args.num_images_per_prompt, pattern_index=args.pattern_index)
             
-                if nowm:
-                    orig_image.save(f'{save_folder}/nowm/{i}.png')
-                    nowm_img = orig_image
-                else:
-                    orig_image.save(f'{save_folder}/wm/{i}.png')
-                    wm_img = orig_image
+        orig_image_wm = encoder.generate_img(current_prompt, 
+                                            nowm=0,  
+                                            num_images_per_prompt=args.num_images_per_prompt, 
+                                            pattern_index=args.pattern_index if args.method == 'rid' else None)
+        orig_image_nowm = encoder.generate_img(current_prompt, 
+                                            nowm=1, 
+                                            num_images_per_prompt=args.num_images_per_prompt, 
+                                            pattern_index=args.pattern_index if args.method == 'rid' else None)
         
+        orig_image_wm.save(f'{save_folder}/wm/{i}.png')
+        orig_image_nowm.save(f'{save_folder}/nowm/{i}.png')
+
         # calculate CLIP score between the generated images with and without watermark to the prompt with the reference model
-        sims = measure_similarity([nowm_img, wm_img], current_prompt, ref_model, ref_clip_preprocess, ref_tokenizer, device)
+        sims = measure_similarity([orig_image_nowm, orig_image_wm], current_prompt, ref_model, ref_clip_preprocess, ref_tokenizer, device)
         clip_scores_nowm.append(sims[0].item())
         clip_scores_wm.append(sims[1].item())
     
+    # calculate CLIP score between the generated images with and without watermark to the prompt with the reference model
+    clip_score_wm = np.mean(clip_scores_wm)
+    clip_score_nowm = np.mean(clip_scores_nowm)
     print2file(args.log_file, '''
-            _____ _      _____ _____             ______ _____ _____  
-           / ____| |    |_   _|  __ \    ___    |  ____|_   _|  __ \ 
-          | |    | |      | | | |__) |  ( _ )   | |__    | | | |  | |
-          | |    | |      | | |  ___/   / _ \/\ |  __|   | | | |  | |
-          | |____| |____ _| |_| |      | (_>  < | |     _| |_| |__| |
-           \_____|______|_____|_|       \___/\/ |_|    |_____|_____/ 
-                                                           ''')
-
-    print2file(args.log_file, f'\nCLIP score with watermark: ')
-    print2file(args.log_file, f'\n\t{np.mean(clip_scores_wm)}')
-    print2file(args.log_file, f'\nCLIP score without watermark: ')
-    print2file(args.log_file, f'\n\t{np.mean(clip_scores_nowm)}')
+              _____ _      _____ _____  
+             / ____| |    |_   _|  __ \ 
+            | |    | |      | | | |__) |
+            | |    | |      | | |  ___/ 
+            | |____| |____ _| |_| |     
+             \_____|______|_____|_|     
+                                    ''')
+    print2file(args.log_file, f'\nCLIP score with watermark: \n\n\t{clip_score_wm}')
+    print2file(args.log_file, f'\nCLIP score without watermark: \n\n\t{clip_score_nowm}')
 
 
 
     # calculate FID score between the generated images with and without watermark
-    if args.dataset_id == 'coco':
-        if args.load_images:
-            fid_score = calculate_fid_given_paths([f'{args.load_images}/wm', '/is/sg2/mkaut/ma-thesis/coco/val2017_stats.npz'], 50, device, 2048)
-            print2file(args.log_file, f'\nFID score with watermark: {fid_score}')
-            fid_score = calculate_fid_given_paths([f'{args.load_images}/nowm', '/is/sg2/mkaut/ma-thesis/coco/val2017_stats.npz'], 50, device, 2048)
-            print2file(args.log_file, f'\nFID score without watermark: {fid_score}')
-        else:
-            fid_score = calculate_fid_given_paths([f'{save_folder}/wm', '/is/sg2/mkaut/ma-thesis/coco/val2017_stats.npz'], 50, device, 2048) 
-            print2file(args.log_file, f'\nFID score with watermark: {fid_score}')
-            fid_score = calculate_fid_given_paths([f'{save_folder}/nowm', '/is/sg2/mkaut/ma-thesis/coco/val2017_stats.npz'], 50, device, 2048)
-            print2file(args.log_file, f'\nFID score without watermark: {fid_score}')
-    else:
-        pass
+    fid_score_wm = calculate_fid_given_paths([f'{save_folder}/wm', '/is/sg2/mkaut/ma-thesis/coco/val2017'], 
+                                                batch_size=50, 
+                                                device=device, 
+                                                dims=2048,
+                                                max_samples=args.num_images)
+    fid_score_nowm = calculate_fid_given_paths([f'{save_folder}/nowm', '/is/sg2/mkaut/ma-thesis/coco/val2017'],
+                                                batch_size=50, 
+                                                device=device, 
+                                                dims=2048,
+                                                max_samples=args.num_images)
+    print2file(args.log_file, '''
+            ______ _____ _____  
+            |  ____|_   _|  __ \ 
+            | |__    | | | |  | |
+            |  __|   | | | |  | |
+            | |     _| |_| |__| |
+            |_|    |_____|_____/ 
+                        ''')
+    print2file(args.log_file, f'\nFID score with watermark for {args.num_images} samples: \n\n\t{fid_score_wm}')
+    print2file(args.log_file, f'\nFID score without watermarkfor {args.num_images} samples: \n\n\t{fid_score_nowm}')
+    
 
     print2file(args.log_file, '\n' + '#'*100 + '\n')
 

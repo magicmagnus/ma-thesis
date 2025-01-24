@@ -30,8 +30,10 @@ CALC_CLIP = True
 
 def main(args):
 
-    #HF_CACHE_DIR = '/home/mkaut/.cache/huggingface/hub'
-    HF_CACHE_DIR = '/is/sg2/mkaut/.cache/huggingface/hub'
+    if "is/sg2" in os.getcwd():
+        HF_CACHE_DIR = '/is/sg2/mkaut/.cache/huggingface/hub'
+    else:
+        HF_CACHE_DIR = '/home/mkaut/.cache/huggingface/hub'
 
     device = 'cuda' if torch.cuda.is_available() else 'cpu'
     

@@ -23,13 +23,15 @@ def main(args):
     # Set random seed
     seed_everything(42)
 
-    #HF_CACHE_DIR = '/home/mkaut/.cache/huggingface/hub'
-    HF_CACHE_DIR = '/is/sg2/mkaut/.cache/huggingface/hub'
+    if "is/sg2" in os.getcwd():
+        HF_CACHE_DIR = '/is/sg2/mkaut/.cache/huggingface/hub'
+    else:
+        HF_CACHE_DIR = '/home/mkaut/.cache/huggingface/hub'
 
     device = 'cuda' if torch.cuda.is_available() else 'cpu'
     
     print2file(args.log_file, '\n' + '#'*100 + '\n')
-    print2file(args.log_file, '\nStarting Attack...')
+    print2file(args.log_file, '\nStarting Training...')
     print2file(args.log_file, '\nArgs:\n')
     for arg in vars(args):
         print2file(args.log_file, f'{arg}: {getattr(args, arg)}')
@@ -57,7 +59,7 @@ def main(args):
     args_train.model_save_path = os.path.join('results', exp_id)
     args_train.model_save_name = os.path.join(f'adv_cls_{args.method}_{args.adv_surr_method}')
     args_train.learning_rate = 1e-3
-    args_train.num_epochs = 10
+    args_train.num_epochs = 20
     args_train.batch_size = 128
     args_train.do_eval = True
     args_train.normalize = True
