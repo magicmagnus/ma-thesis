@@ -1,5 +1,6 @@
 import os
-os.environ["CUDA_VISIBLE_DEVICES"] = "0"
+if "is/sg2" in os.getcwd():
+    os.environ["CUDA_VISIBLE_DEVICES"] = "0"
 import sys
 import json
 import torch
