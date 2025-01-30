@@ -1,6 +1,6 @@
 import os
 if "is/sg2" in os.getcwd():
-    os.environ["CUDA_VISIBLE_DEVICES"] = "1"
+    os.environ["CUDA_VISIBLE_DEVICES"] = "0"
 import sys
 import json
 import torch
@@ -48,7 +48,8 @@ def main(args):
     for arg in vars(args):
         print2file(args.log_file, f'{arg}: {getattr(args, arg)}')
 
-    exp_id = f'{args.method}_num_{args.num_images}_steps_{args.inf_steps}_fpr_{args.fpr}'
+    # set seed for internal WM viz and prompt loading
+    seed_everything(0) # should be 0 cause it gets set to 0 later in the loop
 
     # first genrate all the keys per method
     if args.method == 'prc':
@@ -67,14 +68,7 @@ def main(args):
         print2file(args.log_file, 'Invalid method')
         return
 
-    # load dataset
-    if args.dataset_id == 'coco':
-        exp_id = exp_id + '_coco'
-    
-    save_folder = f'./results/{exp_id}'
-
    # load the prompts
-    seed_everything(42)
     if args.dataset_id == 'coco':
         with open('coco/captions_val2017.json') as f:
             all_prompts = [ann['caption'] for ann in json.load(f)['annotations']]
@@ -86,25 +80,28 @@ def main(args):
     for i, prompt in enumerate(prompts):
         print2file(args.log_file, f'{i}: {prompt}')
 
-
-    # load the reference CLIP model
-    print2file(args.log_file, f'\nLoading reference CLIP model {args.reference_model}')
-    ref_model, _, ref_clip_preprocess = open_clip.create_model_and_transforms(
-        args.reference_model, 
-        pretrained=args.reference_model_pretrain, 
-        device=device,
-        cache_dir=HF_CACHE_DIR)
-    ref_tokenizer = open_clip.get_tokenizer(args.reference_model)
+    if args.calc_CLIP:
+        # load the reference CLIP model
+        print2file(args.log_file, f'\nLoading reference CLIP model {args.reference_model}')
+        ref_model, _, ref_clip_preprocess = open_clip.create_model_and_transforms(
+            args.reference_model, 
+            pretrained=args.reference_model_pretrain, 
+            device=device,
+            cache_dir=HF_CACHE_DIR)
+        ref_tokenizer = open_clip.get_tokenizer(args.reference_model)
 
     
     # create the save folders
-    if not os.path.exists(save_folder):
-        os.makedirs(save_folder)
-        os.makedirs(f'{save_folder}/wm')
-        os.makedirs(f'{save_folder}/nowm')
-    print2file(args.log_file, f'\nSaving original images to {save_folder}')
+    exp_id = f'{args.method}_num_{args.num_images}_steps_{args.inf_steps}_fpr_{args.fpr}_{args.model_tag}_{args.dataset_tag}'
+    output_save_path = f'./results/{exp_id}'
+    
+    if not os.path.exists(output_save_path):
+        os.makedirs(output_save_path)
+        os.makedirs(f'{output_save_path}/wm')
+        os.makedirs(f'{output_save_path}/nowm')
+    print2file(args.log_file, f'\nSaving original images to {output_save_path}')
     # also save the config file
-    with open(f'{save_folder}/config.json', 'w') as f:
+    with open(f'{output_save_path}/config.json', 'w') as f:
         temp = vars(args).copy()
         temp.pop('log_file')
         json.dump(temp, f, indent=4)
@@ -122,59 +119,63 @@ def main(args):
             
         orig_image_wm = encoder.generate_img(current_prompt, 
                                             nowm=0,  
+                                            seed=i,
                                             num_images_per_prompt=args.num_images_per_prompt, 
                                             pattern_index=args.pattern_index if args.method == 'rid' else None)
         orig_image_nowm = encoder.generate_img(current_prompt, 
                                             nowm=1, 
+                                            seed=i,
                                             num_images_per_prompt=args.num_images_per_prompt, 
                                             pattern_index=args.pattern_index if args.method == 'rid' else None)
         
-        orig_image_wm.save(f'{save_folder}/wm/{i}.png')
-        orig_image_nowm.save(f'{save_folder}/nowm/{i}.png')
+        orig_image_wm.save(f'{output_save_path}/wm/{i}.png')
+        orig_image_nowm.save(f'{output_save_path}/nowm/{i}.png')
 
+        if args.calc_CLIP:
+            # calculate CLIP score between the generated images with and without watermark to the prompt with the reference model
+            sims = measure_similarity([orig_image_nowm, orig_image_wm], current_prompt, ref_model, ref_clip_preprocess, ref_tokenizer, device)
+            clip_scores_nowm.append(sims[0].item())
+            clip_scores_wm.append(sims[1].item())
+    
+    if args.calc_CLIP:
         # calculate CLIP score between the generated images with and without watermark to the prompt with the reference model
-        sims = measure_similarity([orig_image_nowm, orig_image_wm], current_prompt, ref_model, ref_clip_preprocess, ref_tokenizer, device)
-        clip_scores_nowm.append(sims[0].item())
-        clip_scores_wm.append(sims[1].item())
-    
-    # calculate CLIP score between the generated images with and without watermark to the prompt with the reference model
-    clip_score_wm = np.mean(clip_scores_wm)
-    clip_score_nowm = np.mean(clip_scores_nowm)
-    print2file(args.log_file, '''
-              _____ _      _____ _____  
-             / ____| |    |_   _|  __ \ 
-            | |    | |      | | | |__) |
-            | |    | |      | | |  ___/ 
-            | |____| |____ _| |_| |     
-             \_____|______|_____|_|     
-                                    ''')
-    print2file(args.log_file, f'\nCLIP score with watermark: \n\n\t{clip_score_wm}')
-    print2file(args.log_file, f'\nCLIP score without watermark: \n\n\t{clip_score_nowm}')
+        clip_score_wm = np.mean(clip_scores_wm)
+        clip_score_nowm = np.mean(clip_scores_nowm)
+        print2file(args.log_file, '''
+                _____ _      _____ _____  
+                / ____| |    |_   _|  __ \ 
+                | |    | |      | | | |__) |
+                | |    | |      | | |  ___/ 
+                | |____| |____ _| |_| |     
+                \_____|______|_____|_|     
+                                        ''')
+        print2file(args.log_file, f'\nCLIP score with watermark: \n\n\t{clip_score_wm}')
+        print2file(args.log_file, f'\nCLIP score without watermark: \n\n\t{clip_score_nowm}')
 
 
-
-    # calculate FID score between the generated images with and without watermark
-    fid_score_wm = calculate_fid_given_paths([f'{save_folder}/wm', '/is/sg2/mkaut/ma-thesis/coco/val2017'], 
-                                                batch_size=50, 
-                                                device=device, 
-                                                dims=2048,
-                                                max_samples=args.num_images)
-    fid_score_nowm = calculate_fid_given_paths([f'{save_folder}/nowm', '/is/sg2/mkaut/ma-thesis/coco/val2017'],
-                                                batch_size=50, 
-                                                device=device, 
-                                                dims=2048,
-                                                max_samples=args.num_images)
-    print2file(args.log_file, '''
-            ______ _____ _____  
-            |  ____|_   _|  __ \ 
-            | |__    | | | |  | |
-            |  __|   | | | |  | |
-            | |     _| |_| |__| |
-            |_|    |_____|_____/ 
-                        ''')
-    print2file(args.log_file, f'\nFID score with watermark for {args.num_images} samples: \n\n\t{fid_score_wm}')
-    print2file(args.log_file, f'\nFID score without watermarkfor {args.num_images} samples: \n\n\t{fid_score_nowm}')
-    
+    if args.calc_FID:
+        # calculate FID score between the generated images with and without watermark
+        fid_score_wm = calculate_fid_given_paths([f'{output_save_path}/wm', '/is/sg2/mkaut/ma-thesis/coco/val2017'], 
+                                                    batch_size=50, 
+                                                    device=device, 
+                                                    dims=2048,
+                                                    max_samples=args.num_images)
+        fid_score_nowm = calculate_fid_given_paths([f'{output_save_path}/nowm', '/is/sg2/mkaut/ma-thesis/coco/val2017'],
+                                                    batch_size=50, 
+                                                    device=device, 
+                                                    dims=2048,
+                                                    max_samples=args.num_images)
+        print2file(args.log_file, '''
+                ______ _____ _____  
+                |  ____|_   _|  __ \ 
+                | |__    | | | |  | |
+                |  __|   | | | |  | |
+                | |     _| |_| |__| |
+                |_|    |_____|_____/ 
+                            ''')
+        print2file(args.log_file, f'\nFID score with watermark for {args.num_images} samples: \n\n\t{fid_score_wm}')
+        print2file(args.log_file, f'\nFID score without watermark for {args.num_images} samples: \n\n\t{fid_score_nowm}')
+        
 
     print2file(args.log_file, '\n' + '#'*100 + '\n')
 
@@ -198,11 +199,13 @@ if __name__ == '__main__':
     args.log_dir = f'./experiments/{date}_encode_{args.run_name}'
     os.makedirs(args.log_dir)
 
-    exp_id = f'{args.method}_num_{args.num_images}_steps_{args.inf_steps}_fpr_{args.fpr}_{args.run_name}'
-    if args.dataset_id == 'coco':
-        exp_id += '_coco'
+    args.model_tag = "SD" if args.model_id == 'stabilityai/stable-diffusion-2-1-base' else "Flux"
+    args.dataset_tag = "coco" if args.dataset_id == 'coco' else "SDprompts"	
+
+    logfile_name = f'{args.method}_num_{args.num_images}_steps_{args.inf_steps}_fpr_{args.fpr}_{args.run_name}_{args.model_tag}_{args.dataset_tag}'
+    
     # create a log file
-    args.log_file = open(f'{args.log_dir}/{exp_id}.txt', 'w', buffering=1)  # Use line buffering
+    args.log_file = open(f'{args.log_dir}/{logfile_name}.txt', 'w', buffering=1)  # Use line buffering
     
     main(args)
 

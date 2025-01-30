@@ -36,10 +36,9 @@ def main(args):
     for arg in vars(args):
         print2file(args.log_file, f'{arg}: {getattr(args, arg)}')
 
-    exp_id = f'{args.method}_num_{args.num_images}_steps_{args.inf_steps}_fpr_{args.fpr}'
     # load dataset
-    if args.dataset_id == 'coco':
-        exp_id = exp_id + '_coco'
+    exp_id = f'{args.method}_num_{args.num_images}_steps_{args.inf_steps}_fpr_{args.fpr}_{args.model_tag}_{args.dataset_tag}'
+    input_path = f'./results/{exp_id}'
 
 
     args_train = argparse.Namespace()
@@ -49,14 +48,14 @@ def main(args):
     args_train.train_ratio = 0.8
     args_train.seed = 42
     if args.adv_surr_method == "nowm_wm":
-        args_train.train_data_path_class0 = os.path.join('results', exp_id, "nowm")
-        args_train.train_data_path_class1 = os.path.join('results', exp_id, "wm")
+        args_train.train_data_path_class0 = os.path.join(input_path, "nowm")
+        args_train.train_data_path_class1 = os.path.join(input_path, "wm")
     elif args.adv_surr_method == "real_wm":
         args_train.train_data_path_class0 = os.path.join('coco', 'val2017')
-        args_train.train_data_path_class1 = os.path.join('results', exp_id, "wm")
+        args_train.train_data_path_class1 = os.path.join(input_path, "wm")
     args_train.train_size = None
     args_train.surrogate_model = "ResNet18"
-    args_train.model_save_path = os.path.join('results', exp_id)
+    args_train.model_save_path = os.path.join(input_path)
     args_train.model_save_name = os.path.join(f'adv_cls_{args.method}_{args.adv_surr_method}')
     args_train.learning_rate = 1e-3
     args_train.num_epochs = 20
@@ -89,10 +88,12 @@ if __name__ == '__main__':
     args.log_dir = f'./experiments/{date}_att_train_surr_{args.run_name}'
     os.makedirs(args.log_dir)
 
-    exp_id = f'{args.method}_num_{args.num_images}_steps_{args.inf_steps}_fpr_{args.fpr}_{args.run_name}'
-    if args.dataset_id == 'coco':
-        exp_id += '_coco'
+    args.model_tag = "SD" if args.model_id == 'stabilityai/stable-diffusion-2-1-base' else "Flux"
+    args.dataset_tag = "coco" if args.dataset_id == 'coco' else "SDprompts"	
+
+    logfile_name = f'{args.method}_num_{args.num_images}_steps_{args.inf_steps}_fpr_{args.fpr}_{args.run_name}_{args.model_tag}_{args.dataset_tag}'
+    
     # create a log file
-    args.log_file = open(f'{args.log_dir}/{exp_id}.txt', 'w', buffering=1)  # Use line buffering
+    args.log_file = open(f'{args.log_dir}/{logfile_name}.txt', 'w', buffering=1)  # Use line buffering
     
     main(args)

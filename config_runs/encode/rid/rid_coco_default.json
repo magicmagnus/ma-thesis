@@ -1,14 +1,16 @@
 {
   "method": "rid",
-  "num_images": 200,
-  "model_id": "stabilityai/stable-diffusion-2-1-base",
-  "dataset_id": "coco", 
+  "num_images": 5,
+  "model_id": "black-forest-labs/FLUX.1-dev",
+  "dataset_id": "Gustavosta/Stable-Diffusion-Prompts", 
   "inf_steps": 50,
   "test_inf_steps": 50,
   "fpr": 0.01,
   "guidance_scale": 3.0,
   "num_images_per_prompt": 1,
-  "load_images": null,
+  
+  "calc_FID": false,
+  "calc_CLIP": false,
 
   "radius": 14,
   "radius_cutoff": 3, 

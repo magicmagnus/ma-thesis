@@ -25,8 +25,6 @@ sys.path.append(os.path.join(os.path.dirname(__file__), 'waves', 'adversarial'))
 from waves.adversarial.embedding import adv_emb_attack_custom 
 from waves.adversarial.surrogate import adv_surrogate_model_attack
 
-CALC_FID = True
-CALC_CLIP = True
 
 def main(args):
 
@@ -43,21 +41,17 @@ def main(args):
     for arg in vars(args):
         print2file(args.log_file, f'{arg}: {getattr(args, arg)}')
 
-    exp_id = f'{args.method}_num_{args.num_images}_steps_{args.inf_steps}_fpr_{args.fpr}'
-
-   
     # load dataset
-    if args.dataset_id == 'coco':
-        exp_id = exp_id + '_coco'
-
-
+    exp_id = f'{args.method}_num_{args.num_images}_steps_{args.inf_steps}_fpr_{args.fpr}_{args.model_tag}_{args.dataset_tag}'
+    input_path = f'./results/{exp_id}'
+   
     if args.overwrite_attacked_imgs: 
         # load raw, then attack and save the images
-        print2file(args.log_file, f'\nLoading raw images from results/{exp_id}')
-        print2file(args.log_file, f'\nOverwriting attacked images in results/{exp_id}')
+        print2file(args.log_file, f'\nLoading raw images from {input_path}')
+        print2file(args.log_file, f'\nOverwriting attacked images in {input_path}')
     else:
         # load attacked images, only calculate the scores
-        print2file(args.log_file, f'\nLoading attacked images from results/{exp_id}')
+        print2file(args.log_file, f'\nLoading attacked images from {input_path}')
     
 
 
@@ -122,8 +116,8 @@ def main(args):
         print2file(args.log_file, f'\nAttacktype "{attack_type}" with Attack "{attack_name}": {attack_vals[strength]}' if attack_name is not None else '\n\nNo attack')
         
         # saved new attacked images in or load pre-attacked images from the results/attack_name/attack_val folder
-        path_attack_wm = f'results/{exp_id}/wm/{attack_name}/{attack_vals[strength]}'
-        path_attack_nowm = f'results/{exp_id}/nowm/{attack_name}/{attack_vals[strength]}'
+        path_attack_wm = f'{input_path}/wm/{attack_name}/{attack_vals[strength]}'
+        path_attack_nowm = f'{input_path}/nowm/{attack_name}/{attack_vals[strength]}'
         
 
         clip_scores_wm = []
@@ -141,11 +135,11 @@ def main(args):
 
                 # class 0 and class 1 paths depend on the adv_surr_method
                 if args.adv_surr_method == "nowm_wm":
-                    path_class0 = f'results/{exp_id}/nowm'
-                    path_class1 = f'results/{exp_id}/wm'
+                    path_class0 = f'{input_path}/nowm'
+                    path_class1 = f'{input_path}/wm'
                 elif args.adv_surr_method == "real_wm":
                     path_class0 = f'coco/val2017'
-                    path_class1 = f'results/{exp_id}/wm'
+                    path_class1 = f'{input_path}/wm'
                 elif args.adv_surr_method == "wm1_wm2":
                     # TODO 
                     pass
@@ -159,8 +153,8 @@ def main(args):
                 print2file(args.log_file, f'\nLoading images from {path_class0} and {path_class1}')
 
                 # for adv_surr, the path names are slightly different
-                path_attack_wm = f'results/{exp_id}/wm/{attack_name}_{args.adv_surr_method}/{attack_vals[strength]}'
-                path_attack_nowm = f'results/{exp_id}/nowm/{attack_name}_{args.adv_surr_method}/{attack_vals[strength]}'
+                path_attack_wm = f'{input_path}/wm/{attack_name}_{args.adv_surr_method}/{attack_vals[strength]}'
+                path_attack_nowm = f'{input_path}/nowm/{attack_name}_{args.adv_surr_method}/{attack_vals[strength]}'
                 os.makedirs(path_attack_wm, exist_ok=True)
                 os.makedirs(path_attack_nowm, exist_ok=True)
                 for f in os.listdir(path_attack_wm):
@@ -208,8 +202,8 @@ def main(args):
 
                     seed_everything(i)
 
-                    img_wm = Image.open(f'results/{exp_id}/wm/{i}.png')
-                    img_nowm = Image.open(f'results/{exp_id}/nowm/{i}.png')
+                    img_wm = Image.open(f'{input_path}/wm/{i}.png')
+                    img_nowm = Image.open(f'{input_path}/nowm/{i}.png')
 
                     if attack_type == 'distortion' or attack_type is None:
                         img_wm_attacked, img_nowm_attacked = image_distortion(img_wm, img_nowm, i, args, strength, i==0)
@@ -324,10 +318,12 @@ if __name__ == '__main__':
     args.log_dir = f'./experiments/{date}_attack_{args.run_name}'
     os.makedirs(args.log_dir)
 
-    exp_id = f'{args.method}_num_{args.num_images}_steps_{args.inf_steps}_fpr_{args.fpr}_{args.run_name}'
-    if args.dataset_id == 'coco':
-        exp_id += '_coco'
+    args.model_tag = "SD" if args.model_id == 'stabilityai/stable-diffusion-2-1-base' else "Flux"
+    args.dataset_tag = "coco" if args.dataset_id == 'coco' else "SDprompts"	
+
+    logfile_name = f'{args.method}_num_{args.num_images}_steps_{args.inf_steps}_fpr_{args.fpr}_{args.run_name}_{args.model_tag}_{args.dataset_tag}'
+    
     # create a log file
-    args.log_file = open(f'{args.log_dir}/{exp_id}.txt', 'w', buffering=1)  # Use line buffering
+    args.log_file = open(f'{args.log_dir}/{logfile_name}.txt', 'w', buffering=1)  # Use line buffering
     
     main(args)

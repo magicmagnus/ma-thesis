@@ -96,10 +96,18 @@ class InversableStableDiffusionPipeline(ModifiedStableDiffusionPipeline):
         return text_embeddings
     
     @torch.inference_mode()
-    def get_image_latents(self, image, sample=True, rng_generator=None):
+    def get_image_latents(self, 
+                          image, 
+                          sample, 
+                          height, 
+                          width, 
+                          num_channels_latents, 
+                          batch_size, 
+                          generator=None, 
+                          **kwargs):
         encoding_dist = self.vae.encode(image).latent_dist
         if sample:
-            encoding = encoding_dist.sample(generator=rng_generator)
+            encoding = encoding_dist.sample(generator=generator)
         else:
             encoding = encoding_dist.mode()
         latents = encoding * 0.18215
@@ -110,6 +118,7 @@ class InversableStableDiffusionPipeline(ModifiedStableDiffusionPipeline):
     def backward_diffusion(
         self,
         use_old_emb_i=25,
+        prompt=None,
         text_embeddings=None,
         old_text_embeddings=None,
         new_text_embeddings=None,
@@ -134,6 +143,10 @@ class InversableStableDiffusionPipeline(ModifiedStableDiffusionPipeline):
         timesteps_tensor = self.scheduler.timesteps.to(self.device)
         # scale the initial noise by the standard deviation required by the scheduler
         latents = latents * self.scheduler.init_noise_sigma
+
+        # encode the prompt
+        if prompt is not None:
+            text_embeddings = self.get_text_embedding(prompt) 
 
         if old_text_embeddings is not None and new_text_embeddings is not None:
             prompt_to_prompt = True

@@ -1,6 +1,6 @@
 import os
 if "is/sg2" in os.getcwd():
-    os.environ["CUDA_VISIBLE_DEVICES"] = "0"
+    os.environ["CUDA_VISIBLE_DEVICES"] = "3"
 import sys
 import json
 import torch
@@ -51,8 +51,6 @@ def main(args):
     for arg in vars(args):
         print2file(args.log_file, f'{arg}: {getattr(args, arg)}')
 
-    exp_id = f'{args.method}_num_{args.num_images}_steps_{args.inf_steps}_fpr_{args.fpr}'
-
     # first genrate all the keys per method
     if args.method == 'prc':
         prc_watermark = PRCWatermark(args, hf_cache_dir=HF_CACHE_DIR)
@@ -68,10 +66,9 @@ def main(args):
         return
     
     # load dataset
-    if args.dataset_id == 'coco':
-        exp_id = exp_id + '_coco'
-
-    print2file(args.log_file, f'\nLoading attacked images from results/{exp_id}')
+    exp_id = f'{args.method}_num_{args.num_images}_steps_{args.inf_steps}_fpr_{args.fpr}_{args.model_tag}_{args.dataset_tag}'
+    input_path = f'./results/{exp_id}'
+    print2file(args.log_file, f'\nLoading attacked images from {input_path}')
 
 
     distortions = ['r_degree', 'jpeg_ratio', 'crop_scale', 'crop_ratio', 'gaussian_blur_r', 'gaussian_std', 'brightness_factor', ]
@@ -135,14 +132,14 @@ def main(args):
            
             # load the attackeg images
             if attack_type == "adversarial_surr":
-                img_wm_attacked = Image.open(f'results/{exp_id}/wm/{attack_name}_{args.adv_surr_method}/{attack_vals[strength]}/{i}.png')
-                img_nowm_attacked = Image.open(f'results/{exp_id}/nowm/{attack_name}_{args.adv_surr_method}/{attack_vals[strength]}/{i}.png')
+                img_wm_attacked = Image.open(f'{input_path}/wm/{attack_name}_{args.adv_surr_method}/{attack_vals[strength]}/{i}.png')
+                img_nowm_attacked = Image.open(f'{input_path}/nowm/{attack_name}_{args.adv_surr_method}/{attack_vals[strength]}/{i}.png')
             elif attack_type is not None:
-                img_wm_attacked = Image.open(f'results/{exp_id}/wm/{attack_name}/{attack_vals[strength]}/{i}.png')
-                img_nowm_attacked = Image.open(f'results/{exp_id}/nowm/{attack_name}/{attack_vals[strength]}/{i}.png')
+                img_wm_attacked = Image.open(f'{input_path}/wm/{attack_name}/{attack_vals[strength]}/{i}.png')
+                img_nowm_attacked = Image.open(f'{input_path}/nowm/{attack_name}/{attack_vals[strength]}/{i}.png')
             else:
-                img_wm_attacked = Image.open(f'results/{exp_id}/wm/{i}.png')
-                img_nowm_attacked = Image.open(f'results/{exp_id}/nowm/{i}.png')
+                img_wm_attacked = Image.open(f'{input_path}/wm/{i}.png')
+                img_nowm_attacked = Image.open(f'{input_path}/nowm/{i}.png')
             
             # decode the images
             if args.method == 'prc':
@@ -243,6 +240,7 @@ def main(args):
             print2file(args.log_file, f'\n\tTPR Decode: \t{tpr_decode} at fpr {args.fpr}' )
 
         # plot the ROC curve
+        plt.figure()
         plt.plot(fpr, tpr)
         plt.grid()
         plt.xlabel('FPR')
@@ -292,10 +290,12 @@ if __name__ == '__main__':
     args.log_dir = f'./experiments/{date}_decode_{args.run_name}'
     os.makedirs(args.log_dir)
 
-    exp_id = f'{args.method}_num_{args.num_images}_steps_{args.inf_steps}_fpr_{args.fpr}_{args.run_name}'
-    if args.dataset_id == 'coco':
-        exp_id += '_coco'
+    args.model_tag = "SD" if args.model_id == 'stabilityai/stable-diffusion-2-1-base' else "Flux"
+    args.dataset_tag = "coco" if args.dataset_id == 'coco' else "SDprompts"	
+
+    logfile_name = f'{args.method}_num_{args.num_images}_steps_{args.inf_steps}_fpr_{args.fpr}_{args.run_name}_{args.model_tag}_{args.dataset_tag}'
+    
     # create a log file
-    args.log_file = open(f'{args.log_dir}/{exp_id}.txt', 'w', buffering=1)  # Use line buffering
+    args.log_file = open(f'{args.log_dir}/{logfile_name}.txt', 'w', buffering=1)  # Use line buffering
     
     main(args)

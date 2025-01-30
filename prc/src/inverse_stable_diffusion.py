@@ -16,16 +16,20 @@ class InversableStableDiffusionPipeline(ModifiedStableDiffusionPipeline):
         scheduler,
         safety_checker,
         feature_extractor,
+        image_encoder = None,  # New parameter
         requires_safety_checker: bool = True,
     ):
-        super(InversableStableDiffusionPipeline, self).__init__(vae,
-                text_encoder,
-                tokenizer,
-                unet,
-                scheduler,
-                safety_checker,
-                feature_extractor,
-                requires_safety_checker)
+        super(InversableStableDiffusionPipeline, self).__init__(
+                vae = vae,
+                text_encoder = text_encoder,
+                tokenizer = tokenizer,
+                unet = unet,
+                scheduler = scheduler,
+                safety_checker = safety_checker,
+                feature_extractor = feature_extractor,
+                image_encoder = image_encoder,
+                requires_safety_checker = requires_safety_checker
+        )
 
     def get_random_latents(self, latents=None, height=512, width=512, generator=None):
         height = height or self.unet.config.sample_size * self.vae_scale_factor

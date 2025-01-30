@@ -1,6 +1,6 @@
   method: rid
   num_images: 20
-  model_id: stabilityai/stable-diffusion-2-1-base
+  model_id: stabilityai/stable-diffusion-2-1-base, black-forest-labs/FLUX.1-dev
   dataset_id: coco , Gustavosta/Stable-Diffusion-Prompts 
   inf_steps: 50
   test_inf_steps: 50

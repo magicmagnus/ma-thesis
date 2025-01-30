@@ -1,5 +1,8 @@
 import torch
-from diffusers import DPMSolverMultistepScheduler
+# from diffusers import DPMSolverMultistepScheduler
+# would cause error cause PRC depends on older version of diffusers than we use
+from src.legacy_dpm_multistep_solver import DPMSolverMultistepSchedulerCustom as DPMSolverMultistepScheduler
+# so we use the custom version thats from version 0.21.0 of diffusers
 
 from src.inverse_stable_diffusion import InversableStableDiffusionPipeline
 from src.optim_utils import set_random_seed, transform_img, get_dataset
@@ -130,7 +133,10 @@ def exact_inversion(
     text_embeddings_tuple = pipe.encode_prompt(
         prompt, 'cuda', 1, guidance_scale > 1.0, None
     )
-    text_embeddings = torch.cat([text_embeddings_tuple[1], text_embeddings_tuple[0]])
+    if guidance_scale > 1.0:
+        text_embeddings = torch.cat([text_embeddings_tuple[1], text_embeddings_tuple[0]])
+    else:
+        text_embeddings = text_embeddings_tuple[0]
 
     # image to latent
     image = transform_img(image).unsqueeze(0).to(text_embeddings.dtype).to(device)

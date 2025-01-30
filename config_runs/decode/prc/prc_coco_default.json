@@ -1,6 +1,6 @@
 {
   "method": "prc",
-  "num_images": 20,
+  "num_images": 5,
   "model_id": "stabilityai/stable-diffusion-2-1-base",
   "dataset_id": "coco",
   "inf_steps": 50,
@@ -14,6 +14,10 @@
   "calc_CLIP": false,
   
   "prc_t": 3,
+ 
+  "inv_order": 0,
+  "decoder_inv": true,
+  "var": 1.5,
 
   "reference_model": "ViT-g-14",
   "reference_model_pretrain": "laion2b_s12b_b42k",

@@ -12,10 +12,23 @@ import matplotlib.pyplot as plt
 import itertools
 import random
 
-from diffusers import DPMSolverMultistepScheduler
-from .inverse_stable_diffusion import InversableStableDiffusionPipeline
+#from .inverse_stable_diffusion import InversableStableDiffusionPipeline
 from .utils import *
 from .io_utils import *
+
+
+# Add parent directory to path
+import sys
+sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+
+from utils import seed_everything
+
+# flux
+from pipes.inverse_flux_pipeline import InversableFluxPipeline
+from diffusers.schedulers import FlowMatchEulerDiscreteScheduler
+# sd
+from pipes.inverse_stable_diffusion import InversableStableDiffusionPipeline
+from diffusers import DPMSolverMultistepScheduler
 
 class RingIDWatermark():
     def __init__(self, 
@@ -31,18 +44,7 @@ class RingIDWatermark():
         self.num_images = args.num_images
         self.guidance_scale = args.guidance_scale
         self.args = args
-
-        self.exp_id = f'{self.method}_num_{self.num_images}_steps_{self.inf_steps}'
-
-        scheduler = DPMSolverMultistepScheduler.from_pretrained(self.model_id, subfolder='scheduler')
-        self.pipe = InversableStableDiffusionPipeline.from_pretrained(
-            self.model_id,
-            scheduler=scheduler,
-            torch_dtype=torch.float32,
-            cache_dir=self.hf_cache_dir
-        ).to(self.device)
-        self.pipe.set_progress_bar_config(disable=True)
-
+        
         self.RADIUS = args.radius
         self.RADIUS_CUTOFF = args.radius_cutoff
         self.RING_WATERMARK_CHANNEL = args.ring_watermark_channel
@@ -51,26 +53,57 @@ class RingIDWatermark():
 
         self.watermark_channel = self.WATERMARK_CHANNEL  # Set self.watermark_channel
 
-        # Load or generate watermark patterns
+
+    	# Load or generate watermark patterns
         key_id = f'{self.method}_seed_{args.watermark_seed}_ringwidth_{args.ring_width}_timeshift_{args.time_shift}_fixgt_{args.fix_gt}_channelmin_{args.channel_min}_assignedkeys_{args.assigned_keys}'
         key_path = f'keys/{key_id}.pkl'
 
         if not os.path.exists(key_path):
+            # key does not exist yet, generate watermark and save it
             self.generate_watermark_patterns()
             with open(key_path, 'wb') as f:
                 pickle.dump([self.Fourier_watermark_pattern_list, self.watermark_region_mask], f)
             print(f'\nGenerated RingID keys and saved to file {key_path}')
         else:
+            # load the existing keys
             with open(key_path, 'rb') as f:
                 self.Fourier_watermark_pattern_list, self.watermark_region_mask = pickle.load(f)
             print(f'\nLoaded RingID keys from file {key_path}')
 
+
+        # which Model to use
+        if args.model_id == 'stabilityai/stable-diffusion-2-1-base':
+            scheduler = DPMSolverMultistepScheduler.from_pretrained(self.model_id, subfolder='scheduler')
+            self.pipe = InversableStableDiffusionPipeline.from_pretrained(
+                self.model_id,
+                scheduler=scheduler,
+                torch_dtype=torch.float32,
+                cache_dir=self.hf_cache_dir
+            ).to(self.device)
+            self.pipe.set_progress_bar_config(disable=True)
+        elif args.model_id == 'black-forest-labs/FLUX.1-dev':
+            print("\nUsing FLUX model")
+            scheduler = FlowMatchEulerDiscreteScheduler.from_pretrained(
+                args.model_id,
+                subfolder="scheduler"
+            )
+            self.pipe = InversableFluxPipeline.from_pretrained(
+                args.model_id,
+                scheduler=scheduler,
+                torch_dtype=torch.bfloat16,
+                cache_dir=self.hf_cache_dir,
+            ).to(self.device)
+        self.pipe.set_progress_bar_config(disable=True)
+
+        # generate single watermark pattern for visualization
         self.visualize_watermark_pattern()
 
     def visualize_watermark_pattern(self):
-    
-        set_random_seed(1)
-        init_latents = self.pipe.get_random_latents().to(torch.float64)
+
+        # TODO maybe set random seed here, cause duplicated watermark patterns???
+
+        init_latents_np = np.random.randn(1, 4, 64, 64)
+        init_latents = torch.from_numpy(init_latents_np).to(torch.float64).to(self.device)
         init_latents_orig = init_latents.clone()
         pattern = self.Fourier_watermark_pattern_list[self.args.pattern_index]
 
@@ -85,7 +118,7 @@ class RingIDWatermark():
             ax[1, i].imshow(pattern[0, i].imag.cpu().numpy(), cmap='GnBu', vmin=-50, vmax=50)
         ax[0, 0].set_title('Watermark pattern (real part)', loc='left', fontsize=10)
         ax[1, 0].set_title('Watermark pattern (imaginary part)', loc='left', fontsize=10)
-        fig.suptitle(f'RingID Watermark pattern index {self.args.pattern_index}, channel {self.watermark_channel}, radius {self.RADIUS}, radius_cutoff {self.RADIUS_CUTOFF}, timeshift {self.args.time_shift}, fix_gt {self.args.fix_gt}', fontsize=12)
+        fig.suptitle(f'RingID Watermark, pattern index {self.args.pattern_index}, channel {self.watermark_channel}, radius {self.RADIUS}, radius_cutoff {self.RADIUS_CUTOFF}, timeshift {self.args.time_shift}, fix_gt {self.args.fix_gt}', fontsize=12)
         plt.tight_layout()
         plt.savefig(f'{self.args.log_dir}/{self.method}_wm_only.png', bbox_inches='tight', pad_inches=0.2)
         plt.close(fig)
@@ -117,16 +150,19 @@ class RingIDWatermark():
         ax[2, 0].set_title('FFT after watermarking (imaginary part)', loc='left', fontsize=10)
         ax[3, 0].set_title('init_latents after watermarking (spatial domain)', loc='left', fontsize=10)
         ax[4, 0].set_title('Difference (watermarked - original)', loc='left', fontsize=10)
-        fig.suptitle(f'RingID Watermark with pattern index {self.args.pattern_index}, channel {self.watermark_channel}, radius {self.RADIUS}, radius_cutoff {self.RADIUS_CUTOFF}, timeshift {self.args.time_shift}, fix_gt {self.args.fix_gt}', fontsize=12)
+        fig.suptitle(f'RingID Watermark, pattern index {self.args.pattern_index}, channel {self.watermark_channel}, radius {self.RADIUS}, radius_cutoff {self.RADIUS_CUTOFF}, timeshift {self.args.time_shift}, fix_gt {self.args.fix_gt}', fontsize=12)
         plt.tight_layout()
         plt.savefig(f'{self.args.log_dir}/{self.method}_wm_latents.png', bbox_inches='tight', pad_inches=0.2)
         plt.close(fig)
         
-
+    # only called once in the beginning
     def generate_watermark_patterns(self):
         # set_random_seed(self.args.watermark_seed)
-        base_latents = self.pipe.get_random_latents()
-        base_latents = base_latents.to(torch.float64)
+        # base_latents = self.pipe.get_random_latents()
+        # base_latents = base_latents.to(torch.float64)
+        
+        base_latents_np = np.random.randn(1, 4, 64, 64)
+        base_latents = torch.from_numpy(base_latents_np).to(torch.float64).to(self.device)
         self.original_latents_shape = base_latents.shape
 
         # Generate watermark masks as in utils.py
@@ -189,6 +225,8 @@ class RingIDWatermark():
                 Fourier_watermark_pattern[:, self.RING_WATERMARK_CHANNEL, ...] = fft(torch.fft.fftshift(ifft(Fourier_watermark_pattern[:, self.RING_WATERMARK_CHANNEL, ...]), dim = (-1, -2)) * self.args.time_shift_factor)
                 # Fourier_watermark_pattern[:, self.RING_WATERMARK_CHANNEL, ...] = fft(torch.fft.fftshift(ifft(Fourier_watermark_pattern[:, self.RING_WATERMARK_CHANNEL, ...]), dim = (-1, -2)))
 
+   
+    ############################# ENCODING ########################################
     def inject_watermark(self, init_latents, pattern_index=0):
         # Inject the specified watermark pattern into the latents
         pattern = self.Fourier_watermark_pattern_list[pattern_index]
@@ -202,20 +240,31 @@ class RingIDWatermark():
             init_latents_fft[:, channel, :, :][channel_mask] = pattern[:, channel, :, :][channel_mask]
 
         # Inverse FFT to get watermarked latents
-        init_latents = torch.fft.ifft2(torch.fft.ifftshift(init_latents_fft, dim=(-1, -2))).real.to(init_latents.dtype)
+        init_latents = torch.fft.ifft2(torch.fft.ifftshift(init_latents_fft, dim=(-1, -2))).real.to(torch.float32)
         return init_latents
 
-    def generate_img(self, prompt, nowm=False, pattern_index=0, num_images_per_prompt=1):
-        init_latents = self.pipe.get_random_latents().to(torch.float32)
 
-        if not nowm:
-            init_latents = self.inject_watermark(init_latents, pattern_index)
+    def generate_img(self, prompt, nowm, seed, pattern_index=0, num_images_per_prompt=1, **kwargs):
+        
+        
+        init_latents_np = np.random.randn(1, 4, 64, 64)
+        init_latents = torch.from_numpy(init_latents_np).to(torch.float32).to(self.device)
 
-        ## just for testing
-        #generator = torch.Generator(device=self.device).manual_seed(296424072)
-        #negative_prompt = "(CyberRealistic_Negative-neg:0.8) , mature, curvy, big tits, (deformed iris, deformed pupils, semi-realistic, cgi, 3d, render, sketch, cartoon, drawing, anime, mutated hands and fingers:1.4) , (deformed, distorted, disfigured:1.3) , poorly drawn, bad anatomy, wrong anatomy, extra limb, missing limb, floating limbs, disconnected limbs, mutation, mutated, ugly, amputation"
-        ##
-
+        if not nowm: # == if wm 
+            init_latents = self.inject_watermark(init_latents, pattern_index) # (1, 4, 64, 64)
+        
+        seed_everything(seed)
+        if isinstance(self.pipe, InversableFluxPipeline):
+            ## (1, 4, 64, 64) --> (1, 1024, 64)
+            init_latents = self.pipe.reshape_latents_SD_to_flux(wm_latents=init_latents,
+                                                                batch_size=num_images_per_prompt,
+                                                                num_channels_latents=16, # later try to set it to 4
+                                                                height=512, # full height and width before
+                                                                width=512,
+                                                                dtype=torch.float32,
+                                                                device=self.device,
+                                                                generator=None,)
+        
         outputs = self.pipe(
             prompt,
             num_images_per_prompt=num_images_per_prompt,
@@ -224,26 +273,38 @@ class RingIDWatermark():
             height=512,
             width=512,
             latents=init_latents,
-            ## just for testing
-            #generator=generator,
-            #negative_prompt=negative_prompt	
-            ##
         )
         orig_image = outputs.images[0]
         return orig_image
 
+    ############################# DECODING ########################################
     def get_inversed_latents(self, img, prompt=''):
-        embedded_prompt = self.pipe.get_text_embedding(prompt)
+        # embedded_prompt = self.pipe.get_text_embedding(prompt)
+        
+        dtype = self.pipe.text_encoder.dtype
+        img = transform_img(img).unsqueeze(0).to(dtype).to(self.device) 
 
-        img = transform_img(img).unsqueeze(0).to(embedded_prompt.dtype).to(self.device)
-        img_latents = self.pipe.get_image_latents(img, sample=False)
+        img_latents = self.pipe.get_image_latents(img, 
+                                                  sample=False, 
+                                                  batch_size=1,
+                                                  num_channels_latents=16, # later try to set it to 4
+                                                  height=512, # full height and width before
+                                                  width=512,)
 
-        reversed_latents = self.pipe.forward_diffusion(
-            latents=img_latents,
-            text_embeddings=embedded_prompt,
-            guidance_scale=1,
-            num_inference_steps=self.test_inf_steps,
-        )
+        reversed_latents = self.pipe.forward_diffusion(latents=img_latents, 
+                                                       prompt=prompt, 
+                                                       guidance_scale=1,
+                                                       num_inference_steps=self.test_inf_steps,
+                                                       device=self.device,)
+
+        if isinstance(self.pipe, InversableFluxPipeline):
+            reversed_latents = self.pipe._unpack_latents(latents=reversed_latents, 
+                                                         height=512, 
+                                                         width=512, 
+                                                         vae_scale_factor=self.pipe.vae_scale_factor)
+            
+            reversed_latents = reversed_latents.to(torch.float32)
+            reversed_latents = reversed_latents[:, :4, ...] # only take the first 4 channels could contain the watermark
 
         return reversed_latents
     
