@@ -1,0 +1,9 @@
+{
+  "overwrite_attacked_imgs": true,
+  "calc_FID": false,
+  "calc_CLIP": false,
+
+  "run_name": "adv_embed_resnet18",
+
+  "adv_embed_resnet18": [10, 8, 6, 4]
+}

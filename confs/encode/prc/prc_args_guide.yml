@@ -1,0 +1,25 @@
+# dataset specific arguments
+model_id: flux, sd
+dataset_id: coco, sdprompts
+num_images: 100
+inf_steps: 50
+fpr: 0.01
+guidance_scale: 3.0
+
+
+calc_FID: false
+calc_CLIP: false
+
+# watermark specific arguments
+method: prc
+prc_t: 3            # parameter better explained in the paper
+var: 1.5            # parameter for detection of the watermark, leave at 1.5 
+# all the following parameters are only used for the exact inversion, technically deprecated
+inv_order: 0        
+decoder_inv: true   
+          
+
+### 
+run_name: prc_default
+
+

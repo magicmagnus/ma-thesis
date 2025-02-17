@@ -27,6 +27,12 @@ condor_rm 15905476.0
     - generates 2 sets of images, wm and no_wm
     - saves both sets for decoding or attacking
 
+- attack_train_surrogate.py
+    - gets same decoding/conf.yml file with watermark parameters, and attack parameters
+    - gets 2 sets of images, wm and no_wm, OR wm and real images
+    - trains surrogate model on wm and no_wm images, OR wm and real images
+    - saves the surrogate model for attacking, in same directory as original images
+
 - attack_images.py
     - gets decoding/conf.yml file with watermark parameters, and attack parameters
     - 2 modes, either load pre-attacked images or attack raw images and save them

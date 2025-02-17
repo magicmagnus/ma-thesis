@@ -1,0 +1,9 @@
+{
+  "overwrite_attacked_imgs": true,
+  "calc_FID": false,
+  "calc_CLIP": false,
+
+  "run_name": "adv_embed_klvae16",
+
+  "adv_embed_klvae16": [10, 8, 6, 4]
+}

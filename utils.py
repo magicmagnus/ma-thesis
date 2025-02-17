@@ -2,6 +2,7 @@ import os
 import random
 import numpy as np
 import torch
+import json
 from PIL import Image, ImageFilter
 from torchvision import transforms
 
@@ -24,6 +25,16 @@ def seed_everything(seed, workers=False):
         torch.use_deterministic_algorithms(True)
         return seed
 
+def transform_img(image, target_size=512):
+    tform = transforms.Compose(
+        [
+            transforms.Resize(target_size),
+            transforms.CenterCrop(target_size),
+            transforms.ToTensor(),
+        ]
+    )
+    image = tform(image)
+    return 2.0 * image - 1.0
 
 def image_distortion(img1, img2, seed, args, i, print_args=True):
     if print_args:
@@ -84,3 +95,70 @@ def image_distortion(img1, img2, seed, args, i, print_args=True):
         img1.save(f"{args.log_dir}/{save_name}_img1.png")
 
     return img1, img2
+
+def get_dirs(args, script_type, extra=None):
+
+    base_dir = os.path.join("experiments", 
+                            args.method,
+                            args.model_id,
+                            args.dataset_id,
+                            f"num_{args.num_images}_steps_{args.inf_steps}_fpr_{args.fpr}_gdscale_{args.guidance_scale}"
+                            )
+
+    # the dir in which the logs will be saved
+    log_dir = os.path.join(base_dir,
+                           script_type,
+                           "logs",
+                           )
+    # the dir in which the encoded images will be saved/loaded from 
+    data_dir = os.path.join(base_dir,
+                            "encoded_imgs", # data is always saved in the encoded_imgs folder
+                            "data",
+                            )
+    
+    return log_dir, data_dir
+    
+def create_and_save_decode_confs(args):
+
+    # in args are args.log_dir and args.data_dir
+
+    # goal: load the templates, merge with current args, and save in the log_dir
+    # load the templates
+    # copy the args
+    args_copy = args
+
+    templates_dir = os.path.join('confs', 'decode_templates')
+    # replace encoded_imgs with decoded_imgs in "data_dir"
+    output_conf_dir = os.path.join("experiments", 
+                            args.method,
+                            args.model_id,
+                            args.dataset_id,
+                            f"num_{args.num_images}_steps_{args.inf_steps}_fpr_{args.fpr}_gdscale_{args.guidance_scale}",
+                            "decode_imgs",
+                            "confs"
+                            )
+    os.makedirs(output_conf_dir, exist_ok=True)
+
+    templates = [t for t in os.listdir(templates_dir) if t.endswith('.json')]
+
+    # so basically, in the templates are the decode.json files, and we wanna 
+    # take our source (only one) encode.json that in args.config, and merge it with the decode.json files
+    # so we first load the source, 
+    # then for all the templates, we load them, merge them with the source (double attributes are
+    # therefore taken from the templates), and save them in the output_conf_dir
+
+    with open(args.config, 'r') as f:
+        source = json.load(f)
+
+    for template in templates:
+        with open(os.path.join(templates_dir, template), 'r') as f:
+            decode = json.load(f)
+
+        # merge the two
+        run_name = decode['run_name']
+        decode.update(source)
+        decode['run_name'] = run_name
+
+        # save the merged
+        with open(os.path.join(output_conf_dir, template), 'w') as f:
+            json.dump(decode, f, indent=4)

@@ -1,0 +1,38 @@
+# dataset specific arguments
+model_id: flux, sd
+dataset_id: coco, sdprompts
+num_images: 100
+inf_steps: 50
+fpr: 0.01
+guidance_scale: 3.0
+
+
+calc_FID: false
+calc_CLIP: false
+
+
+# watermark specific arguments
+method: tr
+w_seed: 0                                       # random seed for the watermark
+w_channel: 0, 1, 2, 3, -1                       # which of the 4 channels to use for the watermark, -1 means all
+w_radius: 10                                    # 1 - 32, radius of the watermark
+w_mask_shape: circle, square, no
+
+# in the complex methods, we inject the watermark in the complex/frequency domain
+# in the seed methods, we inject the watermark in the seed domain (spatial domain of the original image)
+
+# if we use the complex method, we therefore set
+w_injection: complex 
+w_pattern: ring, rand, zeros, const
+w_measurement: l1_complex
+w_pattern_const: 0                          # constant value for the watermark in the complex domain
+
+# if we use the seed method, we therefore set
+w_injection: seed
+w_pattern: seed_ring, seed_rand, seed_zeros
+w_measurement: l1_seed
+
+### 
+run_name: tr_default
+
+

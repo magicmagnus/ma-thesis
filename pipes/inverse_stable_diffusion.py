@@ -10,9 +10,11 @@ from diffusers.pipelines.stable_diffusion.safety_checker import \
     StableDiffusionSafetyChecker
 from diffusers.schedulers import DDIMScheduler,PNDMScheduler, LMSDiscreteScheduler
 
-from modified_stable_diffusion import ModifiedStableDiffusionPipeline
+from .modified_stable_diffusion import ModifiedStableDiffusionPipeline
 from torchvision.transforms import ToPILImage
 import matplotlib.pyplot as plt
+
+import time
 
 
 
@@ -153,7 +155,6 @@ class InversableStableDiffusionPipeline(ModifiedStableDiffusionPipeline):
         else:
             prompt_to_prompt = False
 
-
         for i, t in enumerate(self.progress_bar(timesteps_tensor if not reverse_process else reversed(timesteps_tensor))):
             if prompt_to_prompt:
                 if i < use_old_emb_i:
@@ -166,12 +167,11 @@ class InversableStableDiffusionPipeline(ModifiedStableDiffusionPipeline):
                 torch.cat([latents] * 2) if do_classifier_free_guidance else latents
             )
             latent_model_input = self.scheduler.scale_model_input(latent_model_input, t)
-
             # predict the noise residual
             noise_pred = self.unet(
                 latent_model_input, t, encoder_hidden_states=text_embeddings
             ).sample
-
+            
             # perform guidance
             if do_classifier_free_guidance:
                 noise_pred_uncond, noise_pred_text = noise_pred.chunk(2)

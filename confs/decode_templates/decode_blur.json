@@ -1,0 +1,9 @@
+{
+  "overwrite_attacked_imgs": true,
+  "calc_FID": false,
+  "calc_CLIP": false,
+
+  "run_name": "blur",
+
+  "gaussian_blur_r": [12, 10, 8, 6]
+}

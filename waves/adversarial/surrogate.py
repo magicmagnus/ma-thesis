@@ -5,9 +5,10 @@ import torchvision.transforms as transforms
 import os
 import argparse
 from torchvision.utils import save_image
-from torchvision.models import resnet18
+from torchvision.models import resnet18, resnet50
 from torchattacks.attack import Attack
 from torch.utils.data import Dataset, DataLoader
+from tqdm import tqdm
 
 
 EPS_FACTOR = 1 / 255
@@ -79,7 +80,12 @@ def adv_surrogate_model_attack(
         raise ValueError("target_label must be 0 or 1.")
 
     # load surrogate model
-    model = resnet18(pretrained=False)
+    if args.adv_surr_model == "ResNet18":
+        model = resnet18(pretrained=False)
+    elif args.adv_surr_model == "ResNet50":
+        model = resnet50(pretrained=False)
+    else:
+        raise ValueError("Invalid model name.")
     model.fc = nn.Linear(model.fc.in_features, 2)  # Binary classification: 2 classes
     save_path_full = os.path.join(model_path)
     model.load_state_dict(torch.load(save_path_full))
@@ -110,7 +116,7 @@ def adv_surrogate_model_attack(
             steps=N_STEPS,
             random_start=True,
         )
-        for i, (images, image_paths) in enumerate(train_loader):
+        for i, (images, image_paths) in enumerate(tqdm(train_loader)):
             images = images.to(device)
             if target_label == 1:
                 target_labels = torch.ones(images.size(0), dtype=torch.long).to(device)
@@ -139,7 +145,7 @@ def adv_surrogate_model_attack(
         steps=N_STEPS,
         random_start=False if warmup else True,
     )
-    for i, (images, image_paths) in enumerate(test_loader):
+    for i, (images, image_paths) in enumerate(tqdm(test_loader)):
         images = images.to(device)
         if target_label == 1:
             target_labels = torch.ones(images.size(0), dtype=torch.long).to(device)

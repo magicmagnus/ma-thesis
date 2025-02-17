@@ -8,13 +8,14 @@ from Crypto.Random import get_random_bytes
 
 
 class Gaussian_Shading_chacha:
-    def __init__(self, ch_factor, hw_factor, fpr, user_number):
+    def __init__(self, ch_factor, hw_factor, fpr, user_number, latent_channels=4):
         self.ch = ch_factor
         self.hw = hw_factor
         self.nonce = None
         self.key = None
         self.watermark = None
-        self.latentlength = 4 * 64 * 64
+        self.latent_channels = latent_channels
+        self.latentlength = self.latent_channels * 64 * 64 # 4 * 64 * 64
         self.marklength = self.latentlength//(self.ch * self.hw * self.hw)
 
         self.threshold = 1 if self.hw == 1 and self.ch == 1 else self.ch * self.hw * self.hw // 2
@@ -47,11 +48,11 @@ class Gaussian_Shading_chacha:
             dec_mes = reduce(lambda a, b: 2 * a + b, message[i : i + 1])
             dec_mes = int(dec_mes)
             z[i] = truncnorm.rvs(ppf[dec_mes], ppf[dec_mes + 1])
-        z = torch.from_numpy(z).reshape(1, 4, 64, 64).half()
+        z = torch.from_numpy(z).reshape(1, self.latent_channels, 64, 64).half()
         return z.cuda()
 
     def create_watermark_and_return_w(self):
-        self.watermark = torch.randint(0, 2, [1, 4 // self.ch, 64 // self.hw, 64 // self.hw]).cuda()
+        self.watermark = torch.randint(0, 2, [1, self.latent_channels // self.ch, 64 // self.hw, 64 // self.hw]).cuda()
         sd = self.watermark.repeat(1,self.ch,self.hw,self.hw)
         m = self.stream_key_encrypt(sd.flatten().cpu().numpy())
         # w = self.truncSampling(m)
@@ -62,11 +63,11 @@ class Gaussian_Shading_chacha:
         cipher = ChaCha20.new(key=self.key, nonce=self.nonce)
         sd_byte = cipher.decrypt(np.packbits(reversed_m).tobytes())
         sd_bit = np.unpackbits(np.frombuffer(sd_byte, dtype=np.uint8))
-        sd_tensor = torch.from_numpy(sd_bit).reshape(1, 4, 64, 64).to(torch.uint8)
+        sd_tensor = torch.from_numpy(sd_bit).reshape(1, self.latent_channels, 64, 64).to(torch.uint8)
         return sd_tensor.cuda()
 
     def diffusion_inverse(self,watermark_r):
-        ch_stride = 4 // self.ch
+        ch_stride = self.latent_channels // self.ch
         hw_stride = 64 // self.hw
         ch_list = [ch_stride] * self.ch
         hw_list = [hw_stride] * self.hw
@@ -100,12 +101,13 @@ class Gaussian_Shading_chacha:
 
 
 class Gaussian_Shading:
-    def __init__(self, ch_factor, hw_factor, fpr, user_number):
+    def __init__(self, ch_factor, hw_factor, fpr, user_number, latent_channels=4):
         self.ch = ch_factor
         self.hw = hw_factor
         self.key = None
         self.watermark = None
-        self.latentlength = 4 * 64 * 64
+        self.latent_channels = latent_channels
+        self.latentlength = self.latent_channels * 64 * 64
         self.marklength = self.latentlength//(self.ch * self.hw * self.hw)
 
         self.threshold = 1 if self.hw == 1 and self.ch == 1 else self.ch * self.hw * self.hw // 2
@@ -130,12 +132,12 @@ class Gaussian_Shading:
             dec_mes = reduce(lambda a, b: 2 * a + b, message[i : i + 1])
             dec_mes = int(dec_mes)
             z[i] = truncnorm.rvs(ppf[dec_mes], ppf[dec_mes + 1])
-        z = torch.from_numpy(z).reshape(1, 4, 64, 64).half()
+        z = torch.from_numpy(z).reshape(1, self.latent_channels, 64, 64).half()
         return z.cuda()
 
     def create_watermark_and_return_w(self):
-        self.key = torch.randint(0, 2, [1, 4, 64, 64]).cuda()
-        self.watermark = torch.randint(0, 2, [1, 4 // self.ch, 64 // self.hw, 64 // self.hw]).cuda()
+        self.key = torch.randint(0, 2, [1, self.latent_channels, 64, 64]).cuda()
+        self.watermark = torch.randint(0, 2, [1, self.latent_channels // self.ch, 64 // self.hw, 64 // self.hw]).cuda()
         sd = self.watermark.repeat(1,self.ch,self.hw,self.hw)
         m = ((sd + self.key) % 2).flatten().cpu().numpy()
         # w = self.truncSampling(m)
@@ -143,7 +145,7 @@ class Gaussian_Shading:
         return m, self.key, self.watermark
 
     def diffusion_inverse(self,watermark_sd):
-        ch_stride = 4 // self.ch
+        ch_stride = self.latent_channels // self.ch
         hw_stride = 64 // self.hw
         ch_list = [ch_stride] * self.ch
         hw_list = [hw_stride] * self.hw

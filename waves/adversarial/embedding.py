@@ -13,6 +13,7 @@ from feature_extractors import (
     KLVAEEmbedding,
 )
 import argparse
+from tqdm import tqdm
 
 
 EPS_FACTOR = 1 / 255
@@ -40,7 +41,12 @@ def parse_arguments():
 
 
 def adv_emb_attack(
-    wm_img_path, encoder, strength, output_path, device=torch.device("cuda:0")
+    wm_img_path, 
+    encoder, 
+    strength, 
+    output_path, 
+    device=torch.device("cuda:0"),
+    batch_size=BATCH_SIZE,
 ):
     # check if the file/directory paths exist
     for path in [wm_img_path, output_path]:
@@ -48,17 +54,17 @@ def adv_emb_attack(
             raise FileNotFoundError(f"The path does not exist: {path}")
 
     # load embedding model
-    if encoder == "resnet18":
+    if "resnet18" in encoder:
         # we use last layer's state as the embedding
         embedding_model = ResNet18Embedding("last")
-    elif encoder == "clip":
+    elif "clip" in encoder:
         embedding_model = ClipEmbedding()
-    elif encoder == "klvae8":
+    elif "klvae8" in encoder:
         # same vae as used in generator
         embedding_model = VAEEmbedding("stabilityai/sd-vae-ft-mse")
-    elif encoder == "sdxlvae":
+    elif "sdxlvae" in encoder:
         embedding_model = VAEEmbedding("stabilityai/sdxl-vae")
-    elif encoder == "klvae16":
+    elif "klvae16" in encoder:
         embedding_model = KLVAEEmbedding("kl-f16")
     else:
         raise ValueError(f"Unsupported encoder: {encoder}")
@@ -70,7 +76,7 @@ def adv_emb_attack(
     transform = transforms.ToTensor()
     wm_dataset = SimpleImageFolder(wm_img_path, transform=transform)
     wm_loader = DataLoader(
-        wm_dataset, batch_size=BATCH_SIZE, shuffle=False, num_workers=4, pin_memory=True
+        wm_dataset, batch_size=batch_size, shuffle=False, num_workers=4, pin_memory=True
     )
     print("Data loaded!")
 
@@ -84,7 +90,7 @@ def adv_emb_attack(
     )
 
     # Generate adversarial images
-    for i, (images, image_paths) in enumerate(wm_loader):
+    for i, (images, image_paths) in enumerate(tqdm(wm_loader)):
         images = images.to(device)
 
         # PGD attack

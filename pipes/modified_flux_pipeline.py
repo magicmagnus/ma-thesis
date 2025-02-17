@@ -127,9 +127,9 @@ class ModifiedFluxPipeline(FluxPipeline):
 
         return latents, latent_image_ids
     
-    # prepare latents for direction latent_noise -> image, (1, 4, 64, 64) -> (1, 1024, 64)
+    # prepare latents for direction latent_noise -> image, (1, 16, 64, 64) -> (1, 1024, 64)
     def reshape_latents_SD_to_flux(self, 
-                                   wm_latents, # (1, 4, 64, 64)
+                                   wm_latents, # (1, 16, 64, 64)
                                    batch_size,
                                    num_channels_latents, # default 16
                                    height,
@@ -143,18 +143,29 @@ class ModifiedFluxPipeline(FluxPipeline):
         height = 2 * (int(height) // (self.vae_scale_factor * 2))
         width = 2 * (int(width) // (self.vae_scale_factor * 2))
 
-        shape = (batch_size, num_channels_latents, height, width) # (1, 16, 64, 64)
+        #shape = (batch_size, num_channels_latents, height, width) # (1, 16, 64, 64)
 
-        if isinstance(generator, list) and len(generator) != batch_size:
-            raise ValueError(
-                f"You have passed a list of generators of length {len(generator)}, but requested an effective batch"
-                f" size of {batch_size}. Make sure the batch size matches the length of the generators."
-            )
+        # if isinstance(generator, list) and len(generator) != batch_size:
+        #     raise ValueError(
+        #         f"You have passed a list of generators of length {len(generator)}, but requested an effective batch"
+        #         f" size of {batch_size}. Make sure the batch size matches the length of the generators."
+        #     )
         
-        raw_latents = randn_tensor(shape, generator=generator, device=device, dtype=dtype) # (1, 16, 64, 64)
+        #raw_latents = randn_tensor(shape, generator=generator, device=device, dtype=dtype) # (1, 16, 64, 64)
         
-        raw_latents[:, :4, :, :] = wm_latents     # merge the wm_latens into the first 4 channels of the raw_latents
-        latents = self._pack_latents(raw_latents, batch_size, num_channels_latents, height, width)   # (1, 1024, 64)
+        # if wm_latents.shape[1] < raw_latents.shape[1]: # then wm_latents will have 4 channels
+        #     # for Flux model, RID and TR watermark latents and their non-watermarked latents still only have 4 channels, (2 + 2 cases)
+        #     print("imprinting watermark to the first 4 channels of the raw latents")
+        #     raw_latents[:, :wm_latents.shape[1], :, :] = wm_latents # merge the wm_latens into the first 4 channels of the raw_latents
+        # elif wm_latents.shape[1] == raw_latents.shape[1]:
+        #     # for Flux model, PRC or GS watermarked and their non-watermarked latents have 16 channels (2 + 2 cases)
+        #     print("the watermark latents have the same number of channels as the raw latents")
+        #     raw_latents = wm_latents                                # for watermarks PRC and GaussianShading, that have a variable number of channels/length of the WM                               
+        # else:
+        #     RuntimeError("The watermark latents have more channels than the raw latents.")
+        # raw_latents[:, :4, :, :] = wm_latents     # merge the wm_latens into the first 4 channels of the raw_latents
+        #latents = self._pack_latents(raw_latents, batch_size, num_channels_latents, height, width)   # (1, 1024, 64)
+        latents = self._pack_latents(wm_latents, batch_size, num_channels_latents, height, width)   # (1, 1024, 64)
 
         # latent_image_ids = self._prepare_latent_image_ids(batch_size, height // 2, width // 2, device, dtype)
 

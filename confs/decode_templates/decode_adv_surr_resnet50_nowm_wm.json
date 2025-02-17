@@ -1,0 +1,12 @@
+{
+  "overwrite_attacked_imgs": true,
+  "calc_FID": false,
+  "calc_CLIP": false,
+
+  "run_name": "adv_surr_resnet50_nowm_wm",
+
+  "adv_surr_resnet50": [50, 30, 20, 10],
+  "adv_surr_model": "ResNet50",
+  "adv_surr_method": "nowm_wm",
+  "adv_surr_model_path": ""
+}

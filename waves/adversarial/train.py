@@ -3,12 +3,15 @@ import argparse
 import torch
 import torch.nn as nn
 import torch.optim as optim
-from torchvision.models import resnet18
+from torchvision.models import resnet18, resnet50
 from torchvision.transforms import transforms
 from torchvision.datasets import ImageFolder
 from torch.utils.data import DataLoader
 from custom_dataset import TwoPathImageDataset
 import numpy as np
+from torch.optim.lr_scheduler import CosineAnnealingWarmRestarts
+
+from waves.ldm import lr_scheduler
 
 def print2file(logfile, *args):
     print(*args)
@@ -168,7 +171,12 @@ def train_surrogate_classifier(args):
     print2file(args.log_file, f"Validation on {len(valid_dataset)} samples.")
 
     # Load pretrained ResNet18 and modify the final layer
-    model = resnet18(pretrained=True)
+    if args.surrogate_model == "ResNet18":
+        model = resnet18(pretrained=True)
+    elif args.surrogate_model == "ResNet50":
+        model = resnet50(pretrained=True)
+    else:
+        raise ValueError(f"Unknown model: {args.surrogate_model}")
 
     if model.fc.out_features != args.num_classes:
         # Modify the final layer only if the number of output features doesn't match
@@ -179,9 +187,13 @@ def train_surrogate_classifier(args):
     # Loss and optimizer
     criterion = nn.CrossEntropyLoss()
     optimizer = optim.Adam(model.parameters(), lr=args.learning_rate)
+    lr_scheduler = CosineAnnealingWarmRestarts(optimizer, T_0=10, T_mult=2)
 
     best_val_accuracy = 0.0
     best_model_state = None
+    train_accs = []
+    val_accs = []
+    losses = []
 
     # Training loop
     for epoch in range(args.num_epochs):
@@ -200,6 +212,7 @@ def train_surrogate_classifier(args):
             optimizer.zero_grad()
             loss.backward()
             optimizer.step()
+            lr_scheduler.step()
 
             total_loss += loss.item()
 
@@ -213,6 +226,8 @@ def train_surrogate_classifier(args):
         print2file(args.log_file, 
             f"Epoch [{epoch + 1}/{args.num_epochs}], Training Loss: {train_loss:.4f}, Training Accuracy: {train_accuracy:.2f}%"
         )
+        train_accs.append(train_accuracy)
+        losses.append(train_loss)
 
         if args.do_eval:
             # Evaluation on the validation set
@@ -237,6 +252,7 @@ def train_surrogate_classifier(args):
                 print2file(args.log_file, 
                     f"New best model found at epoch {epoch + 1} with validation accuracy: {val_accuracy:.2f}%"
                 )
+            val_accs.append(val_accuracy)
 
     print2file(args.log_file, "Training complete!")
 
@@ -244,7 +260,7 @@ def train_surrogate_classifier(args):
     # Save the best model based on validation accuracy
     if best_model_state is not None:
         save_path_best = os.path.join(
-            args.model_save_path, args.model_save_name + ".pth"
+            args.model_save_path, args.model_save_name + "_acc" + str(best_val_accuracy) + ".pth"
         )
         torch.save(best_model_state, save_path_best)
         print2file(args.log_file, 
@@ -256,7 +272,7 @@ def train_surrogate_classifier(args):
         )
         torch.save(model.state_dict(), save_path_full)
         print2file(args.log_file, f"Entire model saved to {save_path_full}")
-    return
+    return train_accs, val_accs, losses
 
 
 if __name__ == "__main__":

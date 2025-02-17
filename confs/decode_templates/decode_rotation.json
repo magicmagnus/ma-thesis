@@ -1,0 +1,9 @@
+{
+  "overwrite_attacked_imgs": true,
+  "calc_FID": false,
+  "calc_CLIP": false,
+
+  "run_name": "rotation",
+
+  "r_degree": [2, 30, 45, 70, 88, 90]
+}

@@ -1,0 +1,10 @@
+{
+  "overwrite_attacked_imgs": true,
+  "calc_FID": false,
+  "calc_CLIP": false,
+
+  "run_name": "cropscale",
+
+  "crop_scale": [0.9, 0.7, 0.3],
+  "crop_ratio": [0.9, 0.7, 0.3]
+}

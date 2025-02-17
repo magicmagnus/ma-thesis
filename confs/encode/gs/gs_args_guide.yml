@@ -1,0 +1,25 @@
+# dataset specific arguments
+model_id: flux, sd
+dataset_id: coco, sdprompts
+num_images: 100
+inf_steps: 50
+fpr: 0.01
+guidance_scale: 3.0
+
+
+calc_FID: false
+calc_CLIP: false
+
+# watermark specific arguments
+method: gs
+gs_chacha: true           # whether to use ChaCha20 for the watermark
+gs_ch_factor: 1           # look at the paper for more information, default is 1
+gs_hw_factor: 8           # look at the paper for more information, default is 8
+gs_user_number: 1000000   # maximum number of users, default is 1000000
+gs_latent_channels: 4     # 4 is default, 16 could be used for flux models
+          
+
+### 
+run_name: prc_default
+
+
