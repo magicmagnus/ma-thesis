@@ -10,11 +10,11 @@ echo "reinstalled required packages"
 # Run the Python script
 cd /fast/mkaut/ma-thesis/
 
-# encode.py
-# python encode.py --config "config_runs/encode/rid/rid_coco_default.json"
-# python attack_train_surrogate.py --config "config_runs/decode/rid/rid_coco_adv_surr_resnet18_wm_nowm.json"
-python attack_images.py --config "config_runs/decode/rid/rid_coco_adv_surr_resnet18_wm_nowm.json"
-# python decode.py --config "config_runs/decode/gs/gs_coco_jpeg.json" 
+
+# python encode_imgs.py --config "confs/encode/gs/encode.json"
+# python attack_train_surrogate.py --config "experiments/gs/flux/mjprompts/num_50_steps_50_fpr_0.01_gdscale_3.0/decode_imgs/confs/decode.json"
+# python attack_imgs.py --config "experiments/gs/flux/mjprompts/num_50_steps_50_fpr_0.01_gdscale_3.0/decode_imgs/confs/decode.json"
+python decode_imgs.py --config "experiments/gs/flux/mjprompts/num_50_steps_50_fpr_0.01_gdscale_3.0/decode_imgs/confs/decode.json" 
 
 
 

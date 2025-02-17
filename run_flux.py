@@ -26,7 +26,7 @@ pipe = StableDiffusionPipeline.from_pretrained(
 pipe.to("cuda")
 pipe.unet = torch.compile(pipe.unet, mode="reduce-overhead", fullgraph=True)
 
-prompt = "a gorgeous woman, photo by peter lindbergh, realistic, natural sunlight, smooth face, perfect eyes, symmetrical, full body shot, wide angle, sharp focus, 8 k high definition, insanely detailed, intricate, elegant, art by artgerm"
+prompt = "a dog"
 
 resolution = 512
 seed = 13
