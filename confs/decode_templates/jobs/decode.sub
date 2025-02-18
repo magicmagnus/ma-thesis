@@ -1,0 +1,4 @@
+executable = /usr/bin/bash
+request_disk = 10G
+request_cpus = 1
+request_gpus = 1

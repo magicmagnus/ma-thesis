@@ -85,8 +85,8 @@ def image_distortion(img1, img2, seed, args, i, print_args=True):
             save_name += f"_noise{args.gaussian_std[i]}"
 
     if hasattr(args, 'brightness_factor'): # factor between 0 and inf (ca. 20)
-        img1 = transforms.ColorJitter(brightness=args.brightness_factor[i])(img1)
-        img2 = transforms.ColorJitter(brightness=args.brightness_factor[i])(img2)
+        img1 = transforms.ColorJitter(brightness=[args.brightness_factor[i], args.brightness_factor[i]])(img1)
+        img2 = transforms.ColorJitter(brightness=[args.brightness_factor[i], args.brightness_factor[i]])(img2)
         if print_args: 
             #print2file(args.log_file, f"Adjusting brightness with factor {args.brightness_factor[i]}")
             save_name += f"_bright{args.brightness_factor[i]}"
@@ -137,9 +137,24 @@ def create_and_save_decode_confs(args):
                             "decode_imgs",
                             "confs"
                             )
+    output_jobs_dir = os.path.join("experiments", 
+                            args.method,
+                            args.model_id,
+                            args.dataset_id,
+                            f"num_{args.num_images}_steps_{args.inf_steps}_fpr_{args.fpr}_gdscale_{args.guidance_scale}",
+                            "decode_imgs",
+                            "jobs"
+                            )
+                                   
     os.makedirs(output_conf_dir, exist_ok=True)
+    os.makedirs(output_jobs_dir, exist_ok=True)
+    os.makedirs(os.path.join(output_jobs_dir, "logs"), exist_ok=True)
 
     templates = [t for t in os.listdir(templates_dir) if t.endswith('.json')]
+    # order alphabetically
+    templates = sorted(templates)
+    template_job_bash = os.path.join(templates_dir, 'jobs', 'decode.sh')
+    template_job_sub = os.path.join(templates_dir, 'jobs', 'decode.sub')
 
     # so basically, in the templates are the decode.json files, and we wanna 
     # take our source (only one) encode.json that in args.config, and merge it with the decode.json files
@@ -149,6 +164,15 @@ def create_and_save_decode_confs(args):
 
     with open(args.config, 'r') as f:
         source = json.load(f)
+
+    # open the job templates
+    with open(template_job_bash, 'r') as f:
+        job_bash_all = f.read()
+    with open(template_job_sub, 'r') as f:
+        job_sub_all = f.read()
+
+    job_bash_decode_all = job_bash_all
+    job_bash_attack_all = job_bash_all
 
     for template in templates:
         with open(os.path.join(templates_dir, template), 'r') as f:
@@ -162,3 +186,77 @@ def create_and_save_decode_confs(args):
         # save the merged
         with open(os.path.join(output_conf_dir, template), 'w') as f:
             json.dump(decode, f, indent=4)
+
+         # open the job templates
+        with open(template_job_bash, 'r') as f:
+            job_bash = f.read()
+        with open(template_job_sub, 'r') as f:
+            job_sub = f.read()
+
+        # the job files, decode
+        job_bash_decode = job_bash + f"\n/is/sg2/mkaut/miniconda3/bin/python decode_imgs.py --config {output_conf_dir}/{template}"
+        job_bash_decode_all += f"\n/is/sg2/mkaut/miniconda3/bin/python decode_imgs.py --config {output_conf_dir}/{template}"
+        # attack
+        job_bash_attack = job_bash + f"\n/is/sg2/mkaut/miniconda3/bin/python attack_imgs.py --config {output_conf_dir}/{template}"
+        job_bash_attack_all += f"\n/is/sg2/mkaut/miniconda3/bin/python attack_imgs.py --config {output_conf_dir}/{template}"
+
+        # save the job files as .sh files
+        os.makedirs(os.path.join(output_jobs_dir, "decode"), exist_ok=True)
+        os.makedirs(os.path.join(output_jobs_dir, "attack"), exist_ok=True)
+        template_name = template.split(".")[0]
+        with open(os.path.join(output_jobs_dir, "decode", f"{template_name}.sh"), 'w') as f:
+            f.write(job_bash_decode)
+        with open(os.path.join(output_jobs_dir, "attack", f"{template_name}.sh"), 'w') as f:
+            f.write(job_bash_attack)
+
+        # to the sub file, add the final lines 
+        job_sub_decode = job_sub + f"\narguments = /fast/mkaut/ma-thesis/{output_jobs_dir}/decode/{template_name}.sh"
+        job_sub_decode += f"\nerror = /fast/mkaut/ma-thesis/{output_jobs_dir}/logs/{template_name}.$(Process).err"
+        job_sub_decode += f"\noutput = /fast/mkaut/ma-thesis/{output_jobs_dir}/logs/{template_name}.$(Process).out"
+        job_sub_decode += f"\nlog = /fast/mkaut/ma-thesis/{output_jobs_dir}/logs/{template_name}.$(Process).log"
+        job_sub_decode += f"\nrequest_memory = {18432 if args.model_id == 'sd' else 18432 *2}" 
+        job_sub_decode += f"\nqueue"
+
+        job_sub_attack = job_sub + f"\narguments = /fast/mkaut/ma-thesis/{output_jobs_dir}/attack/{template_name}.sh"
+        job_sub_attack += f"\nerror = /fast/mkaut/ma-thesis/{output_jobs_dir}/logs/{template_name}.$(Process).err"
+        job_sub_attack += f"\noutput = /fast/mkaut/ma-thesis/{output_jobs_dir}/logs/{template_name}.$(Process).out"
+        job_sub_attack += f"\nlog = /fast/mkaut/ma-thesis/{output_jobs_dir}/logs/{template_name}.$(Process).log"
+        job_sub_attack += f"\nrequest_memory = {18432 if args.model_id == 'sd' else 18432 *2}"
+        job_sub_attack += f"\nqueue"
+
+        # save the job files as .sub files
+        with open(os.path.join(output_jobs_dir, "decode", f"{template_name}.sub"), 'w') as f:
+            f.write(job_sub_decode)
+        with open(os.path.join(output_jobs_dir, "attack", f"{template_name}.sub"), 'w') as f:
+            f.write(job_sub_attack)
+
+    # save the job files as .sh files
+    with open(os.path.join(output_jobs_dir, "decode_all.sh"), 'w') as f:
+        f.write(job_bash_decode_all)
+    with open(os.path.join(output_jobs_dir, "attack_all.sh"), 'w') as f:
+        f.write(job_bash_attack_all)
+
+    # to the sub file, add the final lines
+    job_sub_decode_all = job_sub + f"\narguments = /fast/mkaut/ma-thesis/{output_jobs_dir}/decode_all.sh"
+    job_sub_decode_all += f"\nerror = /fast/mkaut/ma-thesis/{output_jobs_dir}/logs/decode_all.$(Process).err"
+    job_sub_decode_all += f"\noutput = /fast/mkaut/ma-thesis/{output_jobs_dir}/logs/decode_all.$(Process).out"
+    job_sub_decode_all += f"\nlog = /fast/mkaut/ma-thesis/{output_jobs_dir}/logs/decode_all.$(Process).log"
+    job_sub_decode_all += f"\nrequest_memory = {18432 if args.model_id == 'sd' else 18432 *2}"
+    job_sub_decode_all += f"\nqueue"
+
+    job_sub_attack_all = job_sub + f"\narguments = /fast/mkaut/ma-thesis/{output_jobs_dir}/attack_all.sh"
+    job_sub_attack_all += f"\nerror = /fast/mkaut/ma-thesis/{output_jobs_dir}/logs/attack_all.$(Process).err"
+    job_sub_attack_all += f"\noutput = /fast/mkaut/ma-thesis/{output_jobs_dir}/logs/attack_all.$(Process).out"
+    job_sub_attack_all += f"\nlog = /fast/mkaut/ma-thesis/{output_jobs_dir}/logs/attack_all.$(Process).log"
+    job_sub_attack_all += f"\nrequest_memory = {18432 if args.model_id == 'sd' else 18432 *2}"
+    job_sub_attack_all += f"\nqueue"
+
+    # save the job files as .sub files
+    with open(os.path.join(output_jobs_dir, "decode_all.sub"), 'w') as f:
+        f.write(job_sub_decode_all)
+    with open(os.path.join(output_jobs_dir, "attack_all.sub"), 'w') as f:
+        f.write(job_sub_attack_all)
+
+
+
+
