@@ -214,14 +214,15 @@ def create_and_save_decode_confs(args):
         job_sub_decode += f"\nerror = /fast/mkaut/ma-thesis/{output_jobs_dir}/logs/{template_name}.$(Process).err"
         job_sub_decode += f"\noutput = /fast/mkaut/ma-thesis/{output_jobs_dir}/logs/{template_name}.$(Process).out"
         job_sub_decode += f"\nlog = /fast/mkaut/ma-thesis/{output_jobs_dir}/logs/{template_name}.$(Process).log"
-        job_sub_decode += f"\nrequest_memory = {18432 if args.model_id == 'sd' else 18432 *2}" 
+        # mem requirements: sd = ca 8G, flux ca 33G, clip ca 6G
+        job_sub_decode += f"\nrequest_memory = {18432 if args.model_id == 'sd' else 46080}" 
         job_sub_decode += f"\nqueue"
 
         job_sub_attack = job_sub + f"\narguments = /fast/mkaut/ma-thesis/{output_jobs_dir}/attack/{template_name}.sh"
         job_sub_attack += f"\nerror = /fast/mkaut/ma-thesis/{output_jobs_dir}/logs/{template_name}.$(Process).err"
         job_sub_attack += f"\noutput = /fast/mkaut/ma-thesis/{output_jobs_dir}/logs/{template_name}.$(Process).out"
         job_sub_attack += f"\nlog = /fast/mkaut/ma-thesis/{output_jobs_dir}/logs/{template_name}.$(Process).log"
-        job_sub_attack += f"\nrequest_memory = {18432 if args.model_id == 'sd' else 18432 *2}"
+        job_sub_attack += f"\nrequest_memory = {18432}"
         job_sub_attack += f"\nqueue"
 
         # save the job files as .sub files

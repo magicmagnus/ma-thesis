@@ -9,7 +9,7 @@ from torchvision.datasets import ImageFolder
 from torch.utils.data import DataLoader
 from custom_dataset import TwoPathImageDataset
 import numpy as np
-from torch.optim.lr_scheduler import CosineAnnealingWarmRestarts
+from torch.optim.lr_scheduler import CosineAnnealingLR
 
 from waves.ldm import lr_scheduler
 
@@ -187,13 +187,14 @@ def train_surrogate_classifier(args):
     # Loss and optimizer
     criterion = nn.CrossEntropyLoss()
     optimizer = optim.Adam(model.parameters(), lr=args.learning_rate)
-    lr_scheduler = CosineAnnealingWarmRestarts(optimizer, T_0=10, T_mult=2)
+    #lr_scheduler = CosineAnnealingLR(optimizer, T_max=args.num_epochs)
 
     best_val_accuracy = 0.0
     best_model_state = None
     train_accs = []
     val_accs = []
     losses = []
+    lrs = []
 
     # Training loop
     for epoch in range(args.num_epochs):
@@ -212,7 +213,7 @@ def train_surrogate_classifier(args):
             optimizer.zero_grad()
             loss.backward()
             optimizer.step()
-            lr_scheduler.step()
+            
 
             total_loss += loss.item()
 
@@ -220,7 +221,10 @@ def train_surrogate_classifier(args):
             _, predicted = torch.max(outputs, 1)
             total += labels.size(0)
             correct += (predicted == labels).sum().item()
+        
+        #lr_scheduler.step()
 
+        #lrs.append(lr_scheduler.get_last_lr()[0])
         train_loss = total_loss / len(train_loader)
         train_accuracy = 100 * correct / total
         print2file(args.log_file, 
@@ -272,7 +276,7 @@ def train_surrogate_classifier(args):
         )
         torch.save(model.state_dict(), save_path_full)
         print2file(args.log_file, f"Entire model saved to {save_path_full}")
-    return train_accs, val_accs, losses
+    return train_accs, val_accs, losses, lrs
 
 
 if __name__ == "__main__":

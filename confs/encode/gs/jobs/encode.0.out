@@ -1042,3 +1042,40 @@ Saving original images to experiments/gs/flux/mjprompts/num_1000_steps_50_fpr_0.
 
 Starting to generate images...
 
+
+              _____ _      _____ _____  
+             / ____| |    |_   _|  __ \ 
+            | |    | |      | | | |__) |
+            | |    | |      | | |  ___/ 
+            | |____| |____ _| |_| |     
+             \_____|______|_____|_|     
+                                    
+
+CLIP score with watermark: 
+
+	0.3130881266146898
+
+CLIP score without watermark: 
+
+	0.3102967123910785
+Using device: cuda
+Using device: cuda
+
+            ______ _____ _____  
+            |  ____|_   _|  __ \ 
+            | |__    | | | |  | |
+            |  __|   | | | |  | |
+            | |     _| |_| |__| |
+            |_|    |_____|_____/ 
+                        
+
+FID score with watermark for 1000 samples: 
+
+	109.22720466686701
+
+FID score without watermark for 1000 samples: 
+
+	109.20815465793663
+
+####################################################################################################
+

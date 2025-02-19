@@ -62,14 +62,14 @@ def main(args):
     args_train.model_save_name = f'adv_cls_{args.method}_{args.adv_surr_method}_{args.adv_surr_model}'
     args_train.learning_rate = 1e-3
     args_train.num_epochs = 40
-    args_train.batch_size = 32
+    args_train.batch_size = 64
     args_train.do_eval = True
     args_train.normalize = True
     args_train.device = device
     args_train.log_file = args.log_file
     args_train.log_dir = args.log_dir
 
-    train_accs, val_accs, losses = train_surrogate_classifier(args_train)
+    train_accs, val_accs, losses, lrs = train_surrogate_classifier(args_train)
 
     # Save the training results as plots
     fig, ax1 = plt.subplots()
@@ -93,6 +93,13 @@ def main(args):
     plt.title('Training Results')
     plt.grid()
     plt.savefig(os.path.join(args.log_dir, 'training_results.png'))
+    plt.close()
+
+    # plt the lrs 
+    plt.plot(lrs)
+    plt.title('Learning Rate')
+    plt.grid()
+    plt.savefig(os.path.join(args.log_dir, 'learning_rate.png'))
     plt.close()
 
 

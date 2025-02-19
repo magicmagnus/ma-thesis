@@ -134,10 +134,6 @@ def main(args):
         else:
             path_attack_wm = os.path.join(args.data_dir, "wm", str(attack_name), str(attack_vals[strength]))
             path_attack_nowm = os.path.join(args.data_dir, "nowm", str(attack_name), str(attack_vals[strength]))
-        
-
-        clip_scores_wm = []
-        clip_scores_nowm = []
 
         seed_everything(strength)
 
@@ -145,6 +141,7 @@ def main(args):
         if args.overwrite_attacked_imgs:
             print2file(args.log_file, f'\nAttacking images...')
             
+            # per img-dir attack
             if attack_type == 'adversarial_surr':
                 # attack the wm images to be classified as nowm (label 0), and the nowm images to be classified as wm (label 1)
                 print2file(args.log_file, f'\nAttacking with adversarial surrogate model...')
@@ -160,7 +157,7 @@ def main(args):
                     # TODO 
                     pass
 
-                print2file(args.log_file, f'\nLoading images from {path_class0} and {path_class1}')
+                print2file(args.log_file, f'\nLoading images from {path_class0} \nand {path_class1}')
 
                 # for adv_surr, the path names are slightly different
                 path_attack_wm = os.path.join(args.data_dir, 'wm', args.run_name, str(attack_vals[strength]))
@@ -171,7 +168,7 @@ def main(args):
                     os.remove(os.path.join(path_attack_wm, f))
                 for f in os.listdir(path_attack_nowm):
                     os.remove(os.path.join(path_attack_nowm, f))
-                print2file(args.log_file, f'\nOverwriting attacked images in {path_attack_wm} and {path_attack_nowm}')
+                print2file(args.log_file, f'\nOverwriting attacked images in {path_attack_wm} \nand {path_attack_nowm}')
                 batch_size = 64 if args.num_images > 64 else args.num_images
                 
                 # attack class 0 to be classified as class 1
@@ -198,7 +195,22 @@ def main(args):
                     device=device,
                     args=args,
                 )
-
+            # also per img-dir attack
+            elif attack_type == 'adversarial_embed':
+                batch_size = 8 if args.num_images > 8 else args.num_images
+                adv_emb_attack(wm_img_path=os.path.join(args.data_dir, 'wm'),
+                                                    encoder=attack_name,
+                                                    strength=attack_vals[strength],
+                                                    output_path=path_attack_wm,
+                                                    device=device,
+                                                    batch_size=batch_size)
+                adv_emb_attack(wm_img_path=os.path.join(args.data_dir, 'nowm'),
+                                                    encoder=attack_name,
+                                                        strength=attack_vals[strength],
+                                                        output_path=path_attack_nowm,
+                                                        device=device,
+                                                        batch_size=batch_size)
+            # per image attack, loop over all images
             else:
                 os.makedirs(path_attack_wm, exist_ok=True)
                 os.makedirs(path_attack_nowm, exist_ok=True)
@@ -207,59 +219,45 @@ def main(args):
                 for f in os.listdir(path_attack_nowm):
                     os.remove(os.path.join(path_attack_nowm, f))
                 print2file(args.log_file, f'\nOverwriting attacked images in {path_attack_wm} and {path_attack_nowm}')
+              
+                # only loop per-image for distortion attacks
+                for i in tqdm(range(args.num_images)):
 
-                if attack_type == 'adversarial_embed':
-                    batch_size = 8 if args.num_images > 8 else args.num_images
-                    img_wm_attacked = adv_emb_attack(wm_img_path=os.path.join(args.data_dir, 'wm'),
-                                                        encoder=attack_name,
-                                                        strength=attack_vals[strength],
-                                                        output_path=path_attack_wm,
-                                                        device=device,
-                                                        batch_size=batch_size)
-                    img_nowm_attacked = adv_emb_attack(wm_img_path=os.path.join(args.data_dir, 'nowm'),
-                                                        encoder=attack_name,
-                                                            strength=attack_vals[strength],
-                                                            output_path=path_attack_nowm,
-                                                            device=device,
-                                                            batch_size=batch_size)
-                else:
-                    # only loop per-image for distortion attacks
-                    for i in tqdm(range(args.num_images)):
+                    seed_everything(i)
 
-                        seed_everything(i)
+                    img_wm = Image.open(os.path.join(args.data_dir, 'wm', f'{i}.png'))
+                    img_nowm = Image.open(os.path.join(args.data_dir, 'nowm', f'{i}.png'))
 
-                        img_wm = Image.open(os.path.join(args.data_dir, 'wm', f'{i}.png'))
-                        img_nowm = Image.open(os.path.join(args.data_dir, 'nowm', f'{i}.png'))
+                    if attack_type == 'distortion' or attack_type is None:
+                        img_wm_attacked, img_nowm_attacked = image_distortion(img_wm, img_nowm, i, args, strength, i==0)
+                    # elif attack_type == 'adversarial_embed':
+                    #     img_wm_attacked = adv_emb_attack_custom(img_wm, attack_name, attack_vals[strength], device)
+                    #     img_nowm_attacked = adv_emb_attack_custom(img_nowm, attack_name, attack_vals[strength], device)
+                    img_wm_attacked.save(os.path.join(path_attack_wm, f'{i}.png'))
+                    img_nowm_attacked.save(os.path.join(path_attack_nowm, f'{i}.png'))
 
-                        if attack_type == 'distortion' or attack_type is None:
-                            img_wm_attacked, img_nowm_attacked = image_distortion(img_wm, img_nowm, i, args, strength, i==0)
-                        # elif attack_type == 'adversarial_embed':
-                        #     img_wm_attacked = adv_emb_attack_custom(img_wm, attack_name, attack_vals[strength], device)
-                        #     img_nowm_attacked = adv_emb_attack_custom(img_nowm, attack_name, attack_vals[strength], device)
-                        img_wm_attacked.save(os.path.join(path_attack_wm, f'{i}.png'))
-                        img_nowm_attacked.save(os.path.join(path_attack_nowm, f'{i}.png'))
-
-                        # clip scores
-                        if args.calc_CLIP:
-                            sims = measure_similarity([img_nowm_attacked, img_wm_attacked], prompts[i], ref_model, ref_clip_preprocess, ref_tokenizer, device)
-                            clip_scores_nowm.append(sims[0].item())
-                            clip_scores_wm.append(sims[1].item())
+                    # # clip scores
+                    # if args.calc_CLIP:
+                    #     sims = measure_similarity([img_nowm_attacked, img_wm_attacked], prompts[i], ref_model, ref_clip_preprocess, ref_tokenizer, device)
+                    #     clip_scores_nowm.append(sims[0].item())
+                    #     clip_scores_wm.append(sims[1].item())
             print2file(args.log_file, '\nFinished attacking images')
-        # load pre-attacked images, calculate the scores
+        # check that the attacked images exist, if not, raise an error
         else:
-            # check that the attacked images exist, if not, raise an error
             if not os.path.exists(path_attack_wm) or not os.path.exists(path_attack_nowm):
                 raise FileNotFoundError(f'Attacked images not found in {path_attack_wm} or {path_attack_nowm}')
             print2file(args.log_file, f'\nLoading attacked images from {path_attack_wm} and {path_attack_nowm}')
-
-            if args.calc_CLIP:
-                # also loop per-image, to calculate the clip scores
-                for i in tqdm(range(args.num_images)):
-                    img_wm = Image.open(os.path.join(path_attack_wm, f'{i}.png'))
-                    img_nowm = Image.open(os.path.join(path_attack_nowm, f'{i}.png'))
-                    sims = measure_similarity([img_nowm, img_wm], prompts[i], ref_model, ref_clip_preprocess, ref_tokenizer, device)
-                    clip_scores_nowm.append(sims[0].item())
-                    clip_scores_wm.append(sims[1].item())
+    
+        clip_scores_wm = []
+        clip_scores_nowm = []
+        if args.calc_CLIP:
+            # also loop per-image, to calculate the clip scores
+            for i in tqdm(range(args.num_images)):
+                img_wm = Image.open(os.path.join(path_attack_wm, f'{i}.png'))
+                img_nowm = Image.open(os.path.join(path_attack_nowm, f'{i}.png'))
+                sims = measure_similarity([img_nowm, img_wm], prompts[i], ref_model, ref_clip_preprocess, ref_tokenizer, device)
+                clip_scores_nowm.append(sims[0].item())
+                clip_scores_wm.append(sims[1].item())
 
         fid_score_wm = None
         fid_score_nowm = None
