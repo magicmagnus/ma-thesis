@@ -1,6 +1,6 @@
 import os
-if "is/sg2" in os.getcwd():
-    os.environ["CUDA_VISIBLE_DEVICES"] = "5"
+if 'is/sg2' in os.getcwd():
+    os.environ['CUDA_VISIBLE_DEVICES'] = '5'
 import sys
 import json
 import torch
@@ -24,14 +24,14 @@ def main(args):
     # Set random seed
     seed_everything(43)
 
-    if "is/sg2" in os.getcwd():
+    if 'is/sg2' in os.getcwd():
         HF_CACHE_DIR = '/is/sg2/mkaut/.cache/huggingface/hub'
     else:
         HF_CACHE_DIR = '/home/mkaut/.cache/huggingface/hub'
 
     device = 'cuda' if torch.cuda.is_available() else 'cpu'
     
-    log_dir, args.data_dir = get_dirs(args, "attack_imgs")# , extra=args.run_name)
+    log_dir, args.data_dir = get_dirs(args, 'attack_imgs')# , extra=args.run_name)
     args.log_dir = os.path.join(log_dir, f'{args.date}_{args.run_name}')
     os.makedirs(args.log_dir)
     
@@ -50,12 +50,12 @@ def main(args):
     args_train.num_classes = 2
     args_train.train_ratio = 0.8
     args_train.seed = 42
-    if args.adv_surr_method == "nowm_wm":
-        args_train.train_data_path_class0 = os.path.join(args.data_dir, "nowm")
-        args_train.train_data_path_class1 = os.path.join(args.data_dir, "wm")
-    elif args.adv_surr_method == "real_wm":
+    if args.adv_surr_method == 'nowm_wm':
+        args_train.train_data_path_class0 = os.path.join(args.data_dir, 'nowm')
+        args_train.train_data_path_class1 = os.path.join(args.data_dir, 'wm')
+    elif args.adv_surr_method == 'real_wm':
         args_train.train_data_path_class0 = os.path.join('coco', 'val2017')
-        args_train.train_data_path_class1 = os.path.join(args.data_dir, "wm")
+        args_train.train_data_path_class1 = os.path.join(args.data_dir, 'wm')
     args_train.train_size = None
     args_train.surrogate_model = args.adv_surr_model
     args_train.model_save_path = args.data_dir
@@ -119,6 +119,6 @@ if __name__ == '__main__':
         setattr(args, key, value)
 
     # create a custom folder based on the current time in the name
-    args.date = datetime.datetime.now().strftime("%Y-%m-%d_%H-%M-%S")
+    args.date = datetime.datetime.now().strftime('%Y-%m-%d_%H-%M-%S')
     
     main(args)

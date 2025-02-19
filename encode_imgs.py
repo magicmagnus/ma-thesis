@@ -1,6 +1,6 @@
 import os
-if "is/sg2" in os.getcwd():
-    os.environ["CUDA_VISIBLE_DEVICES"] = "5"
+if 'is/sg2' in os.getcwd():
+    os.environ['CUDA_VISIBLE_DEVICES'] = '5'
 import sys
 import json
 import torch
@@ -36,19 +36,17 @@ from treeringwatermark.pytorch_fid.fid_score import calculate_fid_given_paths
 
 def main(args):
     
-    if "is/sg2" in os.getcwd():
+    if 'is/sg2' in os.getcwd():
         HF_CACHE_DIR = '/is/sg2/mkaut/.cache/huggingface/hub'
     else:
         HF_CACHE_DIR = '/home/mkaut/.cache/huggingface/hub'
 
     # paramters that could theoretically be moved to the config file, but are always the same
-    REFERENCE_MODEL = 'ViT-g-14'
-    REFERENCE_MODEL_PRETRAIN = 'laion2b_s12b_b42k'
     NUM_IMAGES_PER_PROMPT = 1
 
     device = 'cuda' if torch.cuda.is_available() else 'cpu'
 
-    log_dir, args.data_dir = get_dirs(args, "encoded_imgs")
+    log_dir, args.data_dir = get_dirs(args, 'encoded_imgs')
     args.log_dir = os.path.join(log_dir, args.date)
     os.makedirs(args.log_dir)
     
@@ -88,9 +86,9 @@ def main(args):
         with open('coco/captions_val2017.json') as f:
             all_prompts = [ann['caption'] for ann in json.load(f)['annotations']]
     elif args.dataset_id == 'sdprompts':
-        all_prompts = [sample['Prompt'] for sample in load_dataset("Gustavosta/Stable-Diffusion-Prompts")['test']]
+        all_prompts = [sample['Prompt'] for sample in load_dataset('Gustavosta/Stable-Diffusion-Prompts')['test']]
     elif args.dataset_id == 'mjprompts':
-        all_prompts = [sample['caption'] for sample in load_dataset("bghira/mj-v52-redux")['Collection_10']]
+        all_prompts = [sample['caption'] for sample in load_dataset('bghira/mj-v52-redux')['Collection_10']]
     else:
         print2file(args.log_file, 'Invalid dataset_id')
         return
@@ -100,15 +98,6 @@ def main(args):
     for i, prompt in enumerate(prompts):
         print2file(args.log_file, f'{i}: {prompt}')
 
-    if args.calc_CLIP:
-        # load the reference CLIP model
-        print2file(args.log_file, f'\nLoading reference CLIP model {REFERENCE_MODEL}')
-        ref_model, _, ref_clip_preprocess = open_clip.create_model_and_transforms(
-            REFERENCE_MODEL, 
-            pretrained=REFERENCE_MODEL_PRETRAIN, 
-            device=device,
-            cache_dir=HF_CACHE_DIR)
-        ref_tokenizer = open_clip.get_tokenizer(REFERENCE_MODEL)
     
     if not os.path.exists(args.data_dir):
         os.makedirs(args.data_dir)
@@ -124,8 +113,6 @@ def main(args):
         for i, prompt in enumerate(prompts):
             f.write(f'{i}: {prompt}\n')
     
-    clip_scores_wm = []
-    clip_scores_nowm = []
 
     # generate images
     print2file(args.log_file, '\n\nStarting to generate images...\n')
@@ -149,57 +136,6 @@ def main(args):
         orig_image_wm.save(os.path.join(args.data_dir, 'wm', f'{i}.png'))
         orig_image_nowm.save(os.path.join(args.data_dir, 'nowm', f'{i}.png'))
 
-        if args.calc_CLIP:
-            # calculate CLIP score between the generated images with and without watermark to the prompt with the reference model
-            sims = measure_similarity([orig_image_nowm, orig_image_wm], current_prompt, ref_model, ref_clip_preprocess, ref_tokenizer, device)
-            clip_scores_nowm.append(sims[0].item())
-            clip_scores_wm.append(sims[1].item())
-    
-    if args.calc_CLIP:
-        # calculate CLIP score between the generated images with and without watermark to the prompt with the reference model
-        clip_score_wm = np.mean(clip_scores_wm)
-        clip_score_nowm = np.mean(clip_scores_nowm)
-        print2file(args.log_file, '''
-              _____ _      _____ _____  
-             / ____| |    |_   _|  __ \ 
-            | |    | |      | | | |__) |
-            | |    | |      | | |  ___/ 
-            | |____| |____ _| |_| |     
-             \_____|______|_____|_|     
-                                    ''')
-        print2file(args.log_file, f'\nCLIP score with watermark: \n\n\t{clip_score_wm}')
-        print2file(args.log_file, f'\nCLIP score without watermark: \n\n\t{clip_score_nowm}')
-        # create CLIP score pickle file, save the scores in it under "clip_score_wm" and "clip_score_nowm"
-        with open(os.path.join(args.data_dir, 'clip_scores.pkl'), 'wb') as f:
-            pickle.dump({'clip_score_wm': clip_score_wm, 'clip_score_nowm': clip_score_nowm}, f)
-
-
-    if args.calc_FID:
-        # calculate FID score between the generated images with and without watermark
-        fid_score_wm = calculate_fid_given_paths([os.path.join(args.data_dir, 'wm'), '/is/sg2/mkaut/ma-thesis/coco/val2017'], 
-                                                    batch_size=50, 
-                                                    device=device, 
-                                                    dims=2048,
-                                                    max_samples=args.num_images)
-        fid_score_nowm = calculate_fid_given_paths([os.path.join(args.data_dir, 'nowm'), '/is/sg2/mkaut/ma-thesis/coco/val2017'],
-                                                    batch_size=50, 
-                                                    device=device, 
-                                                    dims=2048,
-                                                    max_samples=args.num_images)
-        print2file(args.log_file, '''
-            ______ _____ _____  
-            |  ____|_   _|  __ \ 
-            | |__    | | | |  | |
-            |  __|   | | | |  | |
-            | |     _| |_| |__| |
-            |_|    |_____|_____/ 
-                        ''')
-        print2file(args.log_file, f'\nFID score with watermark for {args.num_images} samples: \n\n\t{fid_score_wm}')
-        print2file(args.log_file, f'\nFID score without watermark for {args.num_images} samples: \n\n\t{fid_score_nowm}')
-        # create FID score pickle file, save the scores in it under "fid_score_wm" and "fid_score_nowm"
-        with open(os.path.join(args.data_dir, 'fid_scores.pkl'), 'wb') as f:
-            pickle.dump({'fid_score_wm': fid_score_wm, 'fid_score_nowm': fid_score_nowm}, f)
-        
 
     print2file(args.log_file, '\n' + '#'*100 + '\n')
 
@@ -219,7 +155,7 @@ if __name__ == '__main__':
         setattr(args, key, value)
     
     # create a custom folder based on the current time in the name
-    args.date = datetime.datetime.now().strftime("%Y-%m-%d_%H-%M-%S")
+    args.date = datetime.datetime.now().strftime('%Y-%m-%d_%H-%M-%S')
     
     main(args)
 
