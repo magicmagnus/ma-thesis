@@ -1,6 +1,6 @@
 import os
 if 'is/sg2' in os.getcwd():
-    os.environ['CUDA_VISIBLE_DEVICES'] = '4'
+    os.environ['CUDA_VISIBLE_DEVICES'] = '6'
 import sys
 import json
 import torch
@@ -149,7 +149,7 @@ def main(args):
     # each iteration is one 'decode run' with a different attack strength
     print2file(args.log_file, '\n\nStarting to decode...\n')
     for strength in range(len(attack_vals)):
-        print2file(args.log_file, f'\nAttacktype "{attack_type}" with Attack "{attack_name}": {attack_vals[strength]}' if attack_name is not None else '\n\nNo attack')
+        print2file(args.log_file, f'\nAttacktype "{attack_type}" with Attack "{attack_name}": {attack_vals[strength]}' if attack_name is not None else '\nNo attack')
         
         # clear the metrics before each attack
         no_wm_metrics = []
@@ -309,10 +309,12 @@ def main(args):
         # plot the ROC curve
         plt.figure()
         plt.plot(fpr, tpr)
+        # mark empriical TPR at FPR=args.fpr
+        plt.scatter(fpr[index], low, color='red', label=f'TPR at FPR={args.fpr}={low:.3f}')
         plt.grid()
         plt.xlabel('FPR')
         plt.ylabel('TPR')
-        plt.title(f'ROC Curve for {args.method} with {attack_name}={attack_vals[strength]}')
+        plt.title(f'ROC Curve for {args.method} with {attack_name}={attack_vals[strength]} \n with TPR@FPR={args.fpr} = {low:.3f}')
         plt.tight_layout()
         plt.savefig(os.path.join(args.log_dir, f'roc_{attack_name}_{attack_vals[strength]}.png'))
         plt.close()
