@@ -112,15 +112,15 @@ def main(args):
         ref_tokenizer = open_clip.get_tokenizer(REFERENCE_MODEL)
 
     # create the results dataframe
-    headers = ['wm_method', 'model_id', 'dataset_id', 'attack_type', 'attack_name', 'attack_strength', 'tpr_empirical', 'auc', 'acc', 'tpr_analytical', 'tpr_decode', 'tpr_traceability', 'threshold', 'mean_wm_dist', 'mean_no_wm_dist', 'clip_score_wm', 'clip_score_nowm', 'fid_score_wm', 'fid_score_nowm']
+    headers = ['wm_method', 'model_id', 'dataset_id', 'attack_type', 'attack_name', 'attack_strength', 'tpr_empirical', 'auc', 'acc', 'tpr_analytical', 'tpr_decode', 'tpr_traceability', 'threshold', 'mean_wm_dist', 'mean_no_wm_dist', 'clip_score_wm', 'clip_score_nowm', 'fid_score_wm', 'fid_score_nowm', 'set_fpr']
     results_df = pd.DataFrame(columns=headers)
 
     distortions = ['r_degree', 'jpeg_ratio', 'crop_scale', 'crop_ratio', 'gaussian_blur_r', 'gaussian_std', 'brightness_factor', ]
     adversarial_embeds = ['adv_embed_resnet18', 'adv_embed_resnet50', 'adv_embed_klvae8', 'adv_embed_sdxlvae', 'adv_embed_klvae16']
     adversarial_surr = ['adv_surr_resnet18', 'adv_surr_resnet50']
-    attack_vals = [None]
-    attack_name = None
-    attack_type = None
+    attack_vals = ['no_attack']
+    attack_name = 'no_attack'
+    attack_type = 'no_attack'
     
     # determine attack type
     for arg in vars(args):
@@ -143,13 +143,13 @@ def main(args):
             attack_type = 'adversarial_surr'
             break
         else:
-            attack_type = None
+            continue
 
     # start the decoding
     # each iteration is one 'decode run' with a different attack strength
     print2file(args.log_file, '\n\nStarting to decode...\n')
     for strength in range(len(attack_vals)):
-        print2file(args.log_file, f'\nAttacktype "{attack_type}" with Attack "{attack_name}": {attack_vals[strength]}' if attack_name is not None else '\nNo attack')
+        print2file(args.log_file, f'\nAttacktype "{attack_type}" with Attack "{attack_name}": {attack_vals[strength]}' if attack_name != 'no_attack' else '\nNo attack')
         
         # clear the metrics before each attack
         no_wm_metrics = []
@@ -177,7 +177,7 @@ def main(args):
         elif attack_type == 'adversarial_surr':
             path_attacked_wm = os.path.join(args.data_dir, 'wm', args.run_name, str(attack_vals[strength]))
             path_attacked_nowm = os.path.join(args.data_dir, 'nowm', args.run_name, str(attack_vals[strength]))
-        elif attack_type is None:
+        elif attack_type == 'no_attack':
             path_attacked_wm = os.path.join(args.data_dir, 'wm')
             path_attacked_nowm = os.path.join(args.data_dir, 'nowm')
         else:
@@ -393,7 +393,8 @@ def main(args):
             'clip_score_wm': clip_score_wm,
             'clip_score_nowm': clip_score_nowm,
             'fid_score_wm': fid_score_wm,
-            'fid_score_nowm': fid_score_nowm
+            'fid_score_nowm': fid_score_nowm,
+            'set_fpr': args.fpr
         }
 
         # save the results to existing dataframe

@@ -1,7 +1,7 @@
 {
   "model_id": "sd",
   "dataset_id": "mjprompts",
-  "num_images": 5,
+  "num_images": 1000,
   "inf_steps": 50,
   "fpr": 0.01,
   "guidance_scale": 3.0,

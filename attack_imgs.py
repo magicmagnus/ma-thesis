@@ -76,9 +76,9 @@ def main(args):
     distortions = ['r_degree', 'jpeg_ratio', 'crop_scale', 'crop_ratio', 'gaussian_blur_r', 'gaussian_std', 'brightness_factor', ]
     adversarial_embeds = ['adv_embed_resnet18', 'adv_embed_clip', 'adv_embed_klvae8', 'adv_embed_sdxlvae', 'adv_embed_klvae16']
     adversarial_surr = ['adv_surr_resnet18', 'adv_surr_resnet50']
-    attack_vals = [None]
-    attack_name = None
-    attack_type = None
+    attack_vals = ['no_attack']
+    attack_name = 'no_attack'
+    attack_type = 'no_attack'
 
     # determine attack type
     for arg in vars(args):
@@ -107,7 +107,7 @@ def main(args):
     # start the attacks
     print2file(args.log_file, '\n\nStarting to attack...\n')
     for strength in range(len(attack_vals)):
-        print2file(args.log_file, f'\nAttacktype "{attack_type}" with Attack "{attack_name}": {attack_vals[strength]}' if attack_name is not None else '\n\nNo attack')
+        print2file(args.log_file, f'\nAttacktype "{attack_type}" with Attack "{attack_name}": {attack_vals[strength]}' if attack_name != 'no_attack' else '\nNo attack')
         
         # get dirs of the attacked images, per attack type
         if attack_type == 'distortion' or attack_type == 'adversarial_embed':
@@ -116,7 +116,7 @@ def main(args):
         elif attack_type == 'adversarial_surr':
             path_attacked_wm = os.path.join(args.data_dir, 'wm', args.run_name, str(attack_vals[strength]))
             path_attacked_nowm = os.path.join(args.data_dir, 'nowm', args.run_name, str(attack_vals[strength]))
-        elif attack_type is None:
+        elif attack_type == 'no_attack':
             # nothing to attack
             print2file(args.log_file, 'No attack\n\n Skipping...')
             return

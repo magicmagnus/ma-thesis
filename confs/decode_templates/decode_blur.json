@@ -1,8 +1,8 @@
 {
-  "calc_FID": false,
-  "calc_CLIP": false,
+  "calc_FID": true,
+  "calc_CLIP": true,
 
   "run_name": "blur",
 
-  "gaussian_blur_r": [12, 10, 8, 6]
+  "gaussian_blur_r": [12, 10, 8, 6, 4]
 }

@@ -7,7 +7,7 @@ Starting Encode...
 
 Args:
 
-config: confs/encode/gs/encode.json
+config: confs/encode/rid/encode.json
 model_id: sd
 dataset_id: mjprompts
 num_images: 1000
@@ -15,21 +15,30 @@ inf_steps: 50
 fpr: 0.01
 guidance_scale: 3.0
 test_inf_steps: 50
-calc_FID: True
-calc_CLIP: True
-method: gs
-gs_chacha: True
-gs_ch_factor: 1
-gs_hw_factor: 8
-gs_user_number: 1000000
-gs_latent_channels_wm: 4
-run_name: gs_default
-date: 2025-02-20_16-03-06
-data_dir: experiments/gs/sd/mjprompts/num_1000_steps_50_fpr_0.01_gdscale_3.0/encoded_imgs/data
-log_dir: experiments/gs/sd/mjprompts/num_1000_steps_50_fpr_0.01_gdscale_3.0/encoded_imgs/logs/2025-02-20_16-03-06
-log_file: <_io.TextIOWrapper name='experiments/gs/sd/mjprompts/num_1000_steps_50_fpr_0.01_gdscale_3.0/encoded_imgs/logs/2025-02-20_16-03-06/gs_default.txt' mode='w' encoding='UTF-8'>
+calc_FID: False
+calc_CLIP: False
+method: rid
+radius: 14
+radius_cutoff: 3
+ring_watermark_channel: [3]
+heter_watermark_channel: [0]
+watermark_seed: 0
+pattern_index: 682
+ring_width: 1
+ring_value_range: 64
+quantization_levels: 2
+assigned_keys: -1
+time_shift: 1
+time_shift_factor: 0.8
+fix_gt: 1
+channel_min: 0
+run_name: tr_default
+date: 2025-02-24_13-40-17
+data_dir: experiments/rid/sd/mjprompts/num_1000_steps_50_fpr_0.01_gdscale_3.0/encoded_imgs/data
+log_dir: experiments/rid/sd/mjprompts/num_1000_steps_50_fpr_0.01_gdscale_3.0/encoded_imgs/logs/2025-02-24_13-40-17
+log_file: <_io.TextIOWrapper name='experiments/rid/sd/mjprompts/num_1000_steps_50_fpr_0.01_gdscale_3.0/encoded_imgs/logs/2025-02-24_13-40-17/tr_default.txt' mode='w' encoding='UTF-8'>
 
-Loaded GaussianShading watermark from file keys/gs_chacha_True_ch_1_hw_8_fpr_0.01_user_1000000_channels_4.pkl
+Loaded RingID keys from file keys/rid_seed_0_ringwidth_1_timeshift_1_fixgt_1_channelmin_0_assignedkeys_-1.pkl
 
 Using SD model
 
@@ -1035,11 +1044,8 @@ Prompts:
 998: vintage realistic photography audrey hepburn portrait poster without text
 999: portals in a dark fairy tale
 
-Saving original images to experiments/gs/sd/mjprompts/num_1000_steps_50_fpr_0.01_gdscale_3.0/encoded_imgs/data
+Saving original images to experiments/rid/sd/mjprompts/num_1000_steps_50_fpr_0.01_gdscale_3.0/encoded_imgs/data
 
 
 Starting to generate images...
-
-
-####################################################################################################
 

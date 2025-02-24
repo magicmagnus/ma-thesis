@@ -1,8 +1,8 @@
 {
-  "calc_FID": false,
-  "calc_CLIP": false,
+  "calc_FID": true,
+  "calc_CLIP": true,
 
   "run_name": "jpeg",
 
-  "jpeg_ratio": [5, 10, 20]
+  "jpeg_ratio": [5, 10, 15, 20, 25]
 }

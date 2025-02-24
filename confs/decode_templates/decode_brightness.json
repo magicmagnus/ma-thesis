@@ -1,8 +1,8 @@
 {
-  "calc_FID": false,
-  "calc_CLIP": false,
+  "calc_FID": true,
+  "calc_CLIP": true,
 
   "run_name": "brightness",
 
-  "brightness_factor": [12, 8, 6, 4]
+  "brightness_factor": [12, 10, 8, 6, 4]
 }

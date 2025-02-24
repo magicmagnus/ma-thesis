@@ -200,6 +200,8 @@ def create_and_save_decode_confs(args):
         job_bash_attack = job_bash + f"\n/is/sg2/mkaut/miniconda3/bin/python attack_imgs.py --config {output_conf_dir}/{template}"
         job_bash_attack_all += f"\n/is/sg2/mkaut/miniconda3/bin/python attack_imgs.py --config {output_conf_dir}/{template}"
 
+        
+
         # save the job files as .sh files
         os.makedirs(os.path.join(output_jobs_dir, "decode"), exist_ok=True)
         os.makedirs(os.path.join(output_jobs_dir, "attack"), exist_ok=True)
@@ -208,6 +210,11 @@ def create_and_save_decode_confs(args):
             f.write(job_bash_decode)
         with open(os.path.join(output_jobs_dir, "attack", f"{template_name}.sh"), 'w') as f:
             f.write(job_bash_attack)
+        if 'surr' in template:
+            job_bash_train = job_bash + f"\n/is/sg2/mkaut/miniconda3/bin/python attack_train_surrogate.py --config {output_conf_dir}/{template}"
+            with open(os.path.join(output_jobs_dir, f"train_{template_name}.sh"), 'w') as f:
+                f.write(job_bash_train)
+
 
         # to the sub file, add the final lines 
         job_sub_decode = job_sub + f"\narguments = /fast/mkaut/ma-thesis/{output_jobs_dir}/decode/{template_name}.sh"
@@ -230,6 +237,15 @@ def create_and_save_decode_confs(args):
             f.write(job_sub_decode)
         with open(os.path.join(output_jobs_dir, "attack", f"{template_name}.sub"), 'w') as f:
             f.write(job_sub_attack)
+        if 'surr' in template:
+            job_sub_train = job_sub + f"\narguments = /fast/mkaut/ma-thesis/{output_jobs_dir}/{template_name}.sh"
+            job_sub_train += f"\nerror = /fast/mkaut/ma-thesis/{output_jobs_dir}/logs/{template_name}.$(Process).err"
+            job_sub_train += f"\noutput = /fast/mkaut/ma-thesis/{output_jobs_dir}/logs/{template_name}.$(Process).out"
+            job_sub_train += f"\nlog = /fast/mkaut/ma-thesis/{output_jobs_dir}/logs/{template_name}.$(Process).log"
+            job_sub_train += f"\nrequest_memory = {18432}"
+            job_sub_train += f"\nqueue"
+            with open(os.path.join(output_jobs_dir, f"train_{template_name}.sub"), 'w') as f:
+                f.write(job_sub_train)
 
     # save the job files as .sh files
     with open(os.path.join(output_jobs_dir, "decode_all.sh"), 'w') as f:
