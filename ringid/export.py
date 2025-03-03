@@ -8,9 +8,9 @@ import itertools
 import numpy as np
 import matplotlib.pyplot as plt
 
-from utils import seed_everything, transform_img
+from utils import seed_everything, transform_img, plot_wm_pattern_fft, plot_wm_latents_fft, visualize_reversed_latents_fft
 from .utils import ring_mask, make_Fourier_ringid_pattern, fft, ifft
-#from .io_utils import *
+
 
 # Add parent directory to path
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
@@ -38,6 +38,7 @@ class RingIDWatermark():
         self.args = args
 
         self.latent_channels = 4 if args.model_id == 'sd' else 16
+        self.latent_channels_wm = args.latent_channels_wm
         
         self.RADIUS = args.radius
         self.RADIUS_CUTOFF = args.radius_cutoff
@@ -46,10 +47,10 @@ class RingIDWatermark():
         self.WATERMARK_CHANNEL = sorted(self.HETER_WATERMARK_CHANNEL + self.RING_WATERMARK_CHANNEL)
 
         self.watermark_channel = self.WATERMARK_CHANNEL  # Set self.watermark_channel
-
+        
 
     	# Load or generate watermark patterns
-        key_id = f'{self.method}_seed_{args.watermark_seed}_ringwidth_{args.ring_width}_timeshift_{args.time_shift}_fixgt_{args.fix_gt}_channelmin_{args.channel_min}_assignedkeys_{args.assigned_keys}'
+        key_id = f'{self.method}_seed_{args.watermark_seed}_patidx_{args.pattern_index}_timeshift_{args.time_shift}_tsfactor_{args.time_shift_factor}_fixgt_{args.fix_gt}_channels_{self.latent_channels_wm}_assignedkeys_{args.assigned_keys}'
         key_path = f'keys/{key_id}.pkl'
 
         if not os.path.exists(key_path):
@@ -91,73 +92,61 @@ class RingIDWatermark():
             ).to(self.device)
         self.pipe.set_progress_bar_config(disable=True)
 
+        # for the potential case of having the watermark duplicated over the 16 channels
+        watermark_channel = []
+        for i in range(self.latent_channels_wm // 4):
+            for channel in self.watermark_channel:
+                watermark_channel.append(channel + i*4)
+        self.watermark_channel = watermark_channel
+        self.watermark_region_mask = self.watermark_region_mask.repeat(self.latent_channels_wm // 4, 1, 1)
+
         # generate single watermark pattern for visualization
         self.visualize_watermark_pattern()
 
     def visualize_watermark_pattern(self):
 
-        # TODO maybe set random seed here, cause duplicated watermark patterns???
+        # 1. plot the watermark pattern in the frequency domain
+        # has latent_channels_wm channels, not neccessarily the full latent_channels
+        pattern = self.Fourier_watermark_pattern_list[self.args.pattern_index]
+        
+        title = (
+            f'RingID Watermark in Frequency Domain, pattern index {self.args.pattern_index},\n'
+            f'channel {self.watermark_channel}, radius {self.RADIUS}, radius_cutoff {self.RADIUS_CUTOFF},\n'
+            f'timeshift {self.args.time_shift}, tsfactor {self.args.time_shift_factor}, fix_gt {self.args.fix_gt}'
+        )
+        save_path = f'{self.args.log_dir}/{self.method}_wm_only.pdf'
 
-        init_latents_np = np.random.randn(1, 4, 64, 64)
+        plot_wm_pattern_fft(num_channels=self.latent_channels_wm,
+                            pattern=pattern,
+                            title=title,
+                            save_path=save_path)
+        
+        # 2. inject watermark and plot the latents in the frequency domain
+        init_latents_np = np.random.randn(1, self.latent_channels, 64, 64)
         init_latents = torch.from_numpy(init_latents_np).to(torch.float32).to(self.device)
         
-        pattern = self.Fourier_watermark_pattern_list[self.args.pattern_index]
-
-        # first plot only the pattern
-        fig, ax = plt.subplots(2, 4, figsize=(10, 6))
-        fig.subplots_adjust(hspace=0.3, wspace=0.1)
-        for i in range(2):
-            for j in range(4):
-                ax[i, j].axis('off')
-        for i in range(4):
-            ax[0, i].imshow(pattern[0, i].real.cpu().numpy(), cmap='GnBu', vmin=-50, vmax=50)
-            ax[1, i].imshow(pattern[0, i].imag.cpu().numpy(), cmap='GnBu', vmin=-50, vmax=50)
-        ax[0, 0].set_title('Watermark pattern (real part)', loc='left', fontsize=10)
-        ax[1, 0].set_title('Watermark pattern (imaginary part)', loc='left', fontsize=10)
-        # draw a line for x=32 and y=32
-        for i in range(2):
-            for j in range(4):
-                ax[i, j].axvline(32, color='r', linestyle='--', linewidth=1)
-                ax[i, j].axhline(32, color='r', linestyle='--', linewidth=1)
-        fig.suptitle(f'RingID Watermark, pattern index {self.args.pattern_index}, channel {self.watermark_channel}, radius {self.RADIUS}, radius_cutoff {self.RADIUS_CUTOFF}, timeshift {self.args.time_shift}, fix_gt {self.args.fix_gt}', fontsize=12)
-        plt.tight_layout()
-        plt.savefig(f'{self.args.log_dir}/{self.method}_wm_only.png', bbox_inches='tight', pad_inches=0.2)
-        plt.close(fig)
-
-        
         init_latents_watermarked = self.inject_watermark(init_latents, self.args.pattern_index)
+        diff = init_latents_watermarked - init_latents # only for before/after visualization
 
         init_latents_fft = torch.fft.fftshift(torch.fft.fft2(init_latents), dim=(-1, -2))
         init_latents_watermarked_fft = torch.fft.fftshift(torch.fft.fft2(init_latents_watermarked), dim=(-1, -2))
 
-        diff = init_latents_watermarked - init_latents # only for visualization
+        save_path = f'{self.args.log_dir}/{self.method}_wm_latents.pdf'
 
-        # plot the watermark pattern applied to the latents
-        fig, ax = plt.subplots(5, 4, figsize=(10, 12))
-        fig.subplots_adjust(hspace=0.3, wspace=0.1)
-        for i in range(5):
-            for j in range(4):
-                ax[i, j].axis('off')
-        for i in range(4):
-            ax[0, i].imshow(init_latents_fft[0, i].real.cpu().numpy(), cmap='GnBu', vmin=-50, vmax=50)
-            ax[1, i].imshow(init_latents_watermarked_fft[0, i].real.cpu().numpy(), cmap='GnBu', vmin=-50, vmax=50)
-            ax[2, i].imshow(init_latents_watermarked_fft[0, i].imag.cpu().numpy(), cmap='GnBu', vmin=-50, vmax=50)
-            ax[3, i].imshow(init_latents_watermarked[0, i].cpu().numpy(), cmap='OrRd', vmin=-4, vmax=4)
-            ax[4, i].imshow(diff[0, i].cpu().numpy(), cmap='RdBu', vmin=-4, vmax=4)
-        ax[0, 0].set_title('Original FFT of init_latents (real part)', loc='left', fontsize=10)
-        ax[1, 0].set_title('FFT after watermarking (real part)', loc='left', fontsize=10)
-        ax[2, 0].set_title('FFT after watermarking (imaginary part)', loc='left', fontsize=10)
-        ax[3, 0].set_title('init_latents after watermarking (spatial domain)', loc='left', fontsize=10)
-        ax[4, 0].set_title('Difference (watermarked - original)', loc='left', fontsize=10)
-        fig.suptitle(f'RingID Watermark, pattern index {self.args.pattern_index}, channel {self.watermark_channel}, radius {self.RADIUS}, radius_cutoff {self.RADIUS_CUTOFF}, timeshift {self.args.time_shift}, fix_gt {self.args.fix_gt}', fontsize=12)
-        plt.tight_layout()
-        plt.savefig(f'{self.args.log_dir}/{self.method}_wm_latents.png', bbox_inches='tight', pad_inches=0.2)
-        plt.close(fig)
+        plot_wm_latents_fft(num_channels=self.latent_channels,
+                            init_latents_fft=init_latents_fft,
+                            init_latents_watermarked_fft=init_latents_watermarked_fft,
+                            init_latents_watermarked=init_latents_watermarked,
+                            diff=diff,
+                            title=title,
+                            save_path=save_path)
+
         
     # only called once in the beginning
     def generate_watermark_patterns(self):
                 
-        base_latents_np = np.random.randn(1, 4, 64, 64)
+        seed_everything(self.args.watermark_seed)
+        base_latents_np = np.random.randn(1, 4, 64, 64)                                        # here 4 channels, else takes forever
         base_latents = torch.from_numpy(base_latents_np).to(torch.float64).to(self.device)
         self.original_latents_shape = base_latents.shape
 
@@ -199,7 +188,7 @@ class RingIDWatermark():
             pattern = make_Fourier_ringid_pattern(
                 self.device,
                 list(combo),
-                base_latents,
+                base_latents,                                        
                 radius=self.RADIUS,
                 radius_cutoff=self.RADIUS_CUTOFF,
                 ring_width=self.args.ring_width,
@@ -208,7 +197,7 @@ class RingIDWatermark():
                 heter_watermark_region_mask=heter_watermark_region_mask if len(self.HETER_WATERMARK_CHANNEL) > 0 else None
             )
             self.Fourier_watermark_pattern_list.append(pattern)
-        print(f'Generated {len(self.Fourier_watermark_pattern_list)} watermark patterns')
+        print(f'\nGenerated {len(self.Fourier_watermark_pattern_list)} watermark patterns')
 
         if self.args.fix_gt == 1:
             # deletes the ring pattern in the imaginary part of the watermark pattern
@@ -221,36 +210,25 @@ class RingIDWatermark():
                 Fourier_watermark_pattern[:, self.RING_WATERMARK_CHANNEL, ...] = fft(torch.fft.fftshift(ifft(Fourier_watermark_pattern[:, self.RING_WATERMARK_CHANNEL, ...]), dim = (-1, -2)) * self.args.time_shift_factor)
                 # Fourier_watermark_pattern[:, self.RING_WATERMARK_CHANNEL, ...] = fft(torch.fft.fftshift(ifft(Fourier_watermark_pattern[:, self.RING_WATERMARK_CHANNEL, ...]), dim = (-1, -2)))
 
+        # repeat the pattern across all channels, 16 instead of 4
+        self.Fourier_watermark_pattern_list = [pattern.repeat(1, self.latent_channels // 4, 1, 1) for pattern in self.Fourier_watermark_pattern_list]
    
     ############################# ENCODING ########################################
     def inject_watermark(self, init_latents, pattern_index=0):
-        #######
-        # the whole process is based on 4 channel latent space, so make a copy of the latents
-        # and inject the watermark pattern into the 4 channels, then return the watermarked latents
-        # Inject the specified watermark pattern into the latents
-        latents_orig = copy.deepcopy(init_latents)
-        init_latents = init_latents[:, :4, ...] # only take the first 4 of (4 or 16 ) channels
-        #######
-
+        
+        # has latent_channels_wm channels, not neccessarily the full latent_channels
         pattern = self.Fourier_watermark_pattern_list[pattern_index]
         init_latents_fft = torch.fft.fftshift(torch.fft.fft2(init_latents.to(torch.float64)), dim=(-1, -2))
 
-        # Replace values in the masked region with the watermark pattern
         assert len(self.watermark_channel) == len(self.watermark_region_mask)
+    
+        # Replace values in the masked region with the watermark pattern
         for idx, channel in enumerate(self.watermark_channel):
             channel_mask = self.watermark_region_mask[idx].unsqueeze(0).to(self.device).bool()
-            # Apply the mask to replace FFT coefficients
             init_latents_fft[:, channel, :, :][channel_mask] = pattern[:, channel, :, :][channel_mask]
 
         # Inverse FFT to get watermarked latents
         init_latents = torch.fft.ifft2(torch.fft.ifftshift(init_latents_fft, dim=(-1, -2))).real.to(torch.float32)
-
-        #######
-        # after the process, we have to merge the original latents with the watermarked latents
-        # to get the full 16 channel latent space
-        latents_orig[:, :4, ...] = init_latents # move back to first 4 of (4 or 16) channels	
-        init_latents = latents_orig
-        #######
 
         return init_latents
 
@@ -330,34 +308,50 @@ class RingIDWatermark():
 
     def eval_watermark(self, reversed_latents_nowm, reversed_latents_wm):
         
-        reversed_latents_nowm = reversed_latents_nowm[:, :4, ...] # only take the first 4 of (4 or 16 ) channels
-        reversed_latents_wm = reversed_latents_wm[:, :4, ...] # only take the first 4 of (4 or 16 ) channels
 
         pattern = self.Fourier_watermark_pattern_list[self.args.pattern_index]
-        watermark_region_mask = self.watermark_region_mask.unsqueeze(0)
+        watermark_region_mask = self.watermark_region_mask.unsqueeze(0) # from 8, 64, 64 to 1, 8, 64, 64
         
         reversed_latents_nowm_fft = torch.fft.fftshift(torch.fft.fft2(reversed_latents_nowm), dim=(-1, -2))
         reversed_latents_wm_fft = torch.fft.fftshift(torch.fft.fft2(reversed_latents_wm), dim=(-1, -2))
 
-
+    
         if not self.args.channel_min:
             # average over all channels
+            #print("\n[ev] pattern[:, self.watermark_channel].shape: ", pattern[:, self.watermark_channel].shape) # 1, 8, 64, 64
+            #print("[ev] reversed_latents_nowm_fft[:, self.watermark_channel].shape: ", reversed_latents_nowm_fft[:, self.watermark_channel].shape) # 1, 8, 64, 64
+            #print("[ev] pattern[:, self.watermark_channel][watermark_region_mask].shape: ", pattern[:, self.watermark_channel][watermark_region_mask].shape) # 1, 8, 64, 64
+            #print("[ev] reversed_latents_nowm_fft[:, self.watermark_channel][watermark_region_mask].shape: ", reversed_latents_nowm_fft[:, self.watermark_channel][watermark_region_mask].shape) # 1, 8, 64, 64
             diff_nowm = torch.abs(pattern[:, self.watermark_channel][watermark_region_mask] - reversed_latents_nowm_fft[:, self.watermark_channel][watermark_region_mask]).mean().item()
             diff_wm = torch.abs(pattern[:, self.watermark_channel][watermark_region_mask] - reversed_latents_wm_fft[:, self.watermark_channel][watermark_region_mask]).mean().item()
         
             return diff_nowm, diff_wm
         else:
             # return only the min distance of the channels
+            #print("\n[ev] pattern[:, self.watermark_channel].shape: ", pattern[:, self.watermark_channel].shape) # 1, 8, 64, 64
+            #print("[ev] reversed_latents_nowm_fft[:, self.watermark_channel].shape: ", reversed_latents_nowm_fft[:, self.watermark_channel].shape) # 1, 8, 64, 64
             diffs_nowm = []
             diffs_wm = []
             # the self.watermark_channel already selects only the watermarke channels
             diff_nowm = torch.abs(pattern[:, self.watermark_channel] - reversed_latents_nowm_fft[:, self.watermark_channel])
             diff_wm = torch.abs(pattern[:, self.watermark_channel] - reversed_latents_wm_fft[:, self.watermark_channel])
-            for c_idx in range(len(self.watermark_channel)):
+            #print("[ev] diff_nowm.shape: ", diff_nowm.shape) # 1, 8, 64, 64
+            #print("[ev] diff_wm.shape: ", diff_wm.shape) # 1, 8, 64, 64
+            for c_idx in range(len(self.watermark_channel)): # over the 8 channels
                 channel_mask = watermark_region_mask[:, c_idx, ...]
+                #print(f"\n[ev] channel: {c_idx}") # 1 to 8
+                #print("\n[ev] channel_mask.shape: ", channel_mask.shape) # 1, 64, 64
+                #print("[ev] diff_nowm[:, c_idx, ...].shape: ", diff_nowm[:, c_idx, ...].shape) # 1, 64, 64
+                #print("[ev] diff_wm[:, c_idx, ...].shape: ", diff_wm[:, c_idx, ...].shape) # 1, 64, 64
+                #print("[ev] diff_nowm[:, c_idx, ...][channel_mask].shape: ", diff_nowm[:, c_idx, ...][channel_mask].shape) # 556, cause channel_mask selects only the watermark region (the circle inside the 64x64 image)
+                #print("[ev] diff_wm[:, c_idx, ...][channel_mask].shape: ", diff_wm[:, c_idx, ...][channel_mask].shape) # 556
+                #print("[ev] diff_nowm[:, c_idx, ...][channel_mask].mean().item(): ", diff_nowm[:, c_idx, ...][channel_mask].mean().item()) # ca. 50-70
+                #print("[ev] diff_wm[:, c_idx, ...][channel_mask].mean().item(): ", diff_wm[:, c_idx, ...][channel_mask].mean().item()) # ca 20-30 
                 diffs_nowm.append(diff_nowm[:, c_idx, ...][channel_mask].mean().item())
                 diffs_wm.append(diff_wm[:, c_idx, ...][channel_mask].mean().item())
 
+            #print(f"\n[ev] diffs_nowm: {diffs_nowm}")
+            #print(f"[ev] diffs_wm: {diffs_wm}")
             return min(diffs_nowm), min(diffs_wm)
         
     def viz_reversed_latents(self, true_latents_nowm, reversed_latents_nowm, true_latents_wm, reversed_latents_wm, attack_name, attack_vals, strength):
@@ -368,88 +362,59 @@ class RingIDWatermark():
         reversed_latents_wm_fft = torch.fft.fftshift(torch.fft.fft2(reversed_latents_wm), dim=(-1, -2))
 
         pattern = self.Fourier_watermark_pattern_list[self.args.pattern_index]
-        watermark_region_mask = self.watermark_region_mask.unsqueeze(0)
+        watermark_region_mask = self.watermark_region_mask.unsqueeze(0) # from 8, 64, 64 to 1, 8, 64, 64
 
         # return only the min distance of the channels
         wm_channel_idx = 0
-        abs_diff_nowm_fft = []
-        abs_diff_wm_fft = []
+        ch_mean_abs_diff_wm_nowm_fft = []
+        ch_mean_abs_diff_wm_wm_fft = []
 
-        # these are for the abs. sum differene values
-        masked_diff_nowm_fft = torch.abs(pattern[:, self.watermark_channel] - reversed_latents_nowm_fft[:, self.watermark_channel]) # this already only has 2 channels
-        masked_diff_wm_fft = torch.abs(pattern[:, self.watermark_channel] - reversed_latents_wm_fft[:, self.watermark_channel])
-        for c_idx in range(reversed_latents_nowm_fft.shape[1]): # over 4 channels
+        # these are for the abs. mean differene values
+        abs_diff_wm_nowm_fft = torch.abs(pattern[:, self.watermark_channel] - reversed_latents_nowm_fft[:, self.watermark_channel]) # this already only has 2 channels (or 8, when 16 channels)
+        abs_diff_wm_wm_fft = torch.abs(pattern[:, self.watermark_channel] - reversed_latents_wm_fft[:, self.watermark_channel])
+        for c_idx in range(reversed_latents_nowm_fft.shape[1]): # over 4 (or 16) channels
             if c_idx in self.watermark_channel:
                 channel_mask = watermark_region_mask[:, wm_channel_idx, ...]
-                abs_diff_nowm_fft.append(masked_diff_nowm_fft[:, wm_channel_idx, ...][channel_mask].sum().item())
-                abs_diff_wm_fft.append(masked_diff_wm_fft[:, wm_channel_idx, ...][channel_mask].sum().item())
+                ch_mean_abs_diff_wm_nowm_fft.append(abs_diff_wm_nowm_fft[:, wm_channel_idx, ...][channel_mask].mean().item())
+                ch_mean_abs_diff_wm_wm_fft.append(abs_diff_wm_wm_fft[:, wm_channel_idx, ...][channel_mask].mean().item())
                 wm_channel_idx += 1
             else:
-                abs_diff_nowm_fft.append(0)
-                abs_diff_wm_fft.append(0)
-            
+                ch_mean_abs_diff_wm_nowm_fft.append(0)
+                ch_mean_abs_diff_wm_wm_fft.append(0)
+           
         # while these are only for the visualization
-        masked_diff_wm_fft = torch.zeros_like(reversed_latents_wm_fft)
-        masked_diff_nowm_fft = torch.zeros_like(reversed_latents_nowm_fft)
+        diff_wm_wm_fft = torch.zeros_like(reversed_latents_wm_fft)
+        diff_wm_nowm_fft = torch.zeros_like(reversed_latents_nowm_fft)
         for i in range(len(self.watermark_channel)):
-            masked_diff_wm_fft[:, self.watermark_channel[i], ...] = pattern[:, self.watermark_channel[i], ...] - reversed_latents_wm_fft[:, self.watermark_channel[i], ...]
-            masked_diff_nowm_fft[:, self.watermark_channel[i], ...] = pattern[:, self.watermark_channel[i], ...] - reversed_latents_nowm_fft[:, self.watermark_channel[i], ...]
-            masked_diff_wm_fft[:, self.watermark_channel[i], ...] = masked_diff_wm_fft[:, self.watermark_channel[i], ...] * watermark_region_mask[:, i, ...]
-            masked_diff_nowm_fft[:, self.watermark_channel[i], ...] = masked_diff_nowm_fft[:, self.watermark_channel[i], ...] * watermark_region_mask[:, i, ...]
-    
+            channel_mask = watermark_region_mask[:, i, ...]
+            diff_wm_wm_fft[:, self.watermark_channel[i], ...] = (pattern[:, self.watermark_channel[i], ...] - reversed_latents_wm_fft[:, self.watermark_channel[i], ...]) * channel_mask
+            diff_wm_nowm_fft[:, self.watermark_channel[i], ...] = (pattern[:, self.watermark_channel[i], ...] - reversed_latents_nowm_fft[:, self.watermark_channel[i], ...]) * channel_mask
+           
         # difference to their own ground truth latents
-        diff_wm_fft = reversed_latents_wm_fft - true_latents_wm_fft # here, in true, the gt_patch should already be injected
-        diff_nowm_fft = reversed_latents_nowm_fft - true_latents_nowm_fft
-        
+        diff_wm_true_fft = reversed_latents_wm_fft - true_latents_wm_fft # here, in true, the gt_patch should already be injected
+        diff_nowm_true_fft = reversed_latents_nowm_fft - true_latents_nowm_fft
+        mean_abs_diff_wm_true_fft = torch.abs(diff_wm_true_fft).mean().item()
+        mean_abs_diff_nowm_true_fft = torch.abs(diff_nowm_true_fft).mean().item()
 
-        fig = plt.figure(figsize=(24, 18), constrained_layout=True)
-        gs = fig.add_gridspec(6, 8)
-        ax = np.array([[fig.add_subplot(gs[i, j]) for j in range(8)] for i in range(6)])
+        title = (f'Reversed latents of method "{self.method}", model "{self.args.model_id}"\n'
+                f'with attack "{attack_name}"={attack_vals[strength]}\n'
+                f'wm_channels={self.latent_channels_wm} out of {self.latent_channels} channels'
+        )
+        save_path = f'{self.args.log_dir}/{self.method}_reversed_latents_{attack_name}_{attack_vals[strength]}.pdf'
 
-        for i in range(6):
-            for j in range(8):
-                ax[i, j].axis('off') 
-
-        for i in range(4):
-            ax[0, i].imshow(reversed_latents_wm_fft[0, i].real.cpu().numpy(), cmap='GnBu', vmin=-50, vmax=50)
-            ax[1, i].imshow(reversed_latents_wm_fft[0, i].imag.cpu().numpy(), cmap='GnBu', vmin=-50, vmax=50)
-            ax[2, i].imshow(np.abs(masked_diff_wm_fft[0, i].real.cpu().numpy()), cmap='gray',vmin=0, vmax=150)
-            ax[2, i].set_title(f'Abs. Diff. (real):\n{abs_diff_wm_fft[i]:.2f}', loc='left', fontsize=16)
-            ax[3, i].imshow(np.abs(masked_diff_wm_fft[0, i].imag.cpu().numpy()), cmap='gray',vmin=0, vmax=150)
-            ax[4, i].imshow(np.abs(diff_wm_fft[0, i].real.cpu().numpy()), cmap='gray',vmin=0, vmax=150)
-            ax[5, i].imshow(np.abs(diff_wm_fft[0, i].imag.cpu().numpy()), cmap='gray',vmin=0, vmax=150)
-
-
-            ax[0, i+4].imshow(reversed_latents_nowm_fft[0, i].real.cpu().numpy(), cmap='GnBu', vmin=-50, vmax=50)
-            ax[1, i+4].imshow(reversed_latents_nowm_fft[0, i].imag.cpu().numpy(), cmap='GnBu', vmin=-50, vmax=50)
-            ax[2, i+4].imshow(np.abs(masked_diff_nowm_fft[0, i].real.cpu().numpy()), cmap='gray',vmin=0, vmax=150)
-            ax[2, i+4].set_title(f'Abs. Diff. (real):\n{abs_diff_nowm_fft[i]:.2f}', loc='left', fontsize=16)
-            ax[3, i+4].imshow(np.abs(masked_diff_nowm_fft[0, i].imag.cpu().numpy()), cmap='gray',vmin=0, vmax=150)
-            ax[4, i+4].imshow(np.abs(diff_nowm_fft[0, i].real.cpu().numpy()), cmap='gray',vmin=0, vmax=150)
-            ax[5, i+4].imshow(np.abs(diff_nowm_fft[0, i].imag.cpu().numpy()), cmap='gray',vmin=0, vmax=150)
-            
-        ax[0, 0].set_title('Reversed FFT of WM latents (real)', loc='left', fontsize=16)
-        ax[1, 0].set_title('Reversed FFT of WM latents (imag)', loc='left', fontsize=16)
-        ax[2, 0].set_title(f'Abs. Diff. to WM Patch (real):\n{abs_diff_wm_fft[0]:.2f}', loc='left', fontsize=16)
-        ax[3, 0].set_title(f'(imag)', loc='left', fontsize=16)
-        ax[4, 0].set_title(f'Abs. Diff. to ground truth WM latents (real)', loc='left', fontsize=16)
-        ax[5, 0].set_title(f'(imag)', loc='left', fontsize=16)
-        #
-        ax[0, 4].set_title('Reversed FFT of NOWM latents (real)', loc='left', fontsize=16)
-        ax[1, 4].set_title('Reversed FFT of NOWM latents (imag)', loc='left', fontsize=16)
-        ax[2, 4].set_title(f'Abs. Diff. to WM Patch (real):\n{abs_diff_nowm_fft[0]:.2f}', loc='left', fontsize=16)
-        ax[3, 4].set_title(f'(imag)', loc='left', fontsize=16)
-        ax[4, 4].set_title(f'Abs. Diff. to ground truth NOWM latents (real)', loc='left', fontsize=16)
-        ax[5, 4].set_title(f'(imag)', loc='left', fontsize=16)
-
-        fig.colorbar(ax[3, 0].imshow(masked_diff_nowm_fft[0, 0].imag.cpu().numpy(), cmap='gray',vmin=0, vmax=150), ax=ax[3, 0], orientation='horizontal', fraction=0.046, pad=0.04)
-        fig.suptitle(f'Reversed latents of method "{self.method}", model "{self.args.model_id}" with attack "{attack_name}"={attack_vals[strength]}', 
-            fontsize=22, y=1.02)
-        plt.savefig(f'{self.args.log_dir}/{self.method}_reversed_latents_{attack_name}_{attack_vals[strength]}.png', 
-        bbox_inches='tight', 
-        pad_inches=0.1,
-        dpi=300)
-        plt.close(fig)
+        visualize_reversed_latents_fft(num_channels=self.latent_channels,
+                                   reversed_latents_wm_fft=reversed_latents_wm_fft,
+                                   reversed_latents_nowm_fft=reversed_latents_nowm_fft,
+                                   diff_wm_wm_fft=diff_wm_wm_fft,
+                                   diff_wm_nowm_fft=diff_wm_nowm_fft,
+                                   diff_wm_true_fft=diff_wm_true_fft,
+                                   diff_nowm_true_fft=diff_nowm_true_fft,
+                                   ch_mean_abs_diff_wm_wm_fft=ch_mean_abs_diff_wm_wm_fft,
+                                   ch_mean_abs_diff_wm_nowm_fft=ch_mean_abs_diff_wm_nowm_fft,
+                                   mean_abs_diff_wm_true_fft=mean_abs_diff_wm_true_fft,
+                                   mean_abs_diff_nowm_true_fft=mean_abs_diff_nowm_true_fft,
+                                   title=title,
+                                   save_path=save_path)
 
 
 

@@ -112,11 +112,11 @@ def get_dataset(args):
     return dataset, prompt_key
 
 
-def circle_mask(size=64, r=10, x_offset=0, y_offset=0):
+def circle_mask(size=64, r=10, x_offset=0, y_offset=-1):
     # reference: https://stackoverflow.com/questions/69687798/generating-a-soft-circluar-mask-using-numpy-python-3
     x0 = y0 = size // 2
     x0 += x_offset
-    y0 += y_offset
+    y0 += y_offset # for some reason, only y needs to be offset by -1 to be centered
     y, x = np.ogrid[:size, :size]
     y = y[::-1]
 

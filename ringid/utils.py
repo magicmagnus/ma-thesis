@@ -351,7 +351,7 @@ def make_Fourier_ringid_pattern(
     shape = no_watermark_latents.shape
     if len(shape) != 4:
         raise ValueError(f'Invalid shape for initial latent: {shape}')
-    
+
     latents_fft = fft(no_watermark_latents)
     # watermarked_latents_fft = copy.deepcopy(latents_fft)
     watermarked_latents_fft = torch.zeros_like(latents_fft)
@@ -531,3 +531,4 @@ def get_dataset(dataset):
         prompt_key = 'Prompt'
 
     return dataset, prompt_key
+

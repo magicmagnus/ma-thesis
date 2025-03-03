@@ -5,7 +5,7 @@ import pickle
 import numpy as np
 import matplotlib.pyplot as plt
 
-from utils import seed_everything, transform_img
+from utils import seed_everything, transform_img, plot_wm_pattern_spatial_domain, visualize_reversed_latents_spatial_domain
 import src.pseudogaussians as prc_gaussians
 from src.optim_utils import get_dataset, image_distortion #, transform_img,
 from src.prc import KeyGen, Encode, str_to_bin, bin_to_str, Detect, Decode
@@ -44,8 +44,6 @@ class PRCWatermark():
         self.guidance_scale = args.guidance_scale
         self.args = args
 
-        if args.model_id == 'sd' and self.latent_channels_wm != 4:
-            raise ValueError("SD model only supports 4 latent channels")
        
         self.encoding_key = None
         self.decoding_key = None
@@ -103,19 +101,17 @@ class PRCWatermark():
 
     def visualize_watermark_pattern(self):
 
-        init_latents = self.get_encoded_latents()
+        # has latent_channels_wm channels, not neccessarily the full latent_channels
+        init_latents = self.get_encoded_latents() 
 
-        fig, ax = plt.subplots(1, self.latent_channels_wm, figsize=(self.latent_channels_wm*2, 6))
-        fig.subplots_adjust(hspace=0.3, wspace=0.1)
-        for i in range(self.latent_channels_wm):
-            ax[i].axis('off')
-        for i in range(self.latent_channels_wm):
-            ax[i].imshow(init_latents[0, i].real.cpu().numpy(), cmap='OrRd', vmin=-4, vmax=4)
-        ax[0].set_title('Watermark pattern', loc='left', fontsize=10)
-        fig.suptitle(f'PRC Watermark pattern', fontsize=12)
-        plt.tight_layout()
-        plt.savefig(f'{self.args.log_dir}/{self.method}_wm_only.png', bbox_inches='tight', pad_inches=0.2)
-        plt.close(fig)
+        title = f'PRC Watermark pattern'
+        save_path = f'{self.args.log_dir}/{self.method}_wm_latents.pdf'
+
+        plot_wm_pattern_spatial_domain(num_channels=self.latent_channels_wm,
+                                        pattern=init_latents,
+                                        title=title,
+                                        save_path=save_path,
+                                        )
     
     ############################# ENCODING ########################################
     def get_encoded_latents(self, message=None):
@@ -233,51 +229,39 @@ class PRCWatermark():
         _, metric_wm, _ = self.detect_watermark(reversed_latents_wm)
         _, metric_nowm, _ = self.detect_watermark(reversed_latents_nowm)
 
-        masked_diff_wm = reversed_latents_wm - true_latents_wm # in the wm_latents the watermark is encoded
-        masked_diff_nowm = reversed_latents_nowm - true_latents_wm # in the no_wm_latents the watermark is not encoded
+        diff_wm_wm = reversed_latents_wm - true_latents_wm # in the wm_latents the watermark is encoded
+        diff_nowm_wm = reversed_latents_nowm - true_latents_wm # in the no_wm_latents the watermark is not encoded
 
-        diff_wm = reversed_latents_wm - true_latents_wm # 
-        diff_nowm = reversed_latents_nowm - true_latents_nowm
+        diff_wm_true = reversed_latents_wm - true_latents_wm # 
+        diff_nowm_true = reversed_latents_nowm - true_latents_nowm
+        mean_abs_diff_wm_true = torch.abs(diff_wm_true).mean().item()
+        mean_abs_diff_nowm_true = torch.abs(diff_nowm_true).mean().item()
 
-        abs_diff_wm = masked_diff_wm.abs()
-        abs_diff_nowm = masked_diff_nowm.abs()
+        abs_diff_wmOLD = diff_wm_wm.abs()
+        abs_diff_nowmOLD = diff_nowm_wm.abs()
 
-        # visualize the reversed wm_latents against the watermark pattern
-        fig = plt.figure(figsize=(22, 8), constrained_layout=True)
-        gs = fig.add_gridspec(3, 8)
-        ax = np.array([[fig.add_subplot(gs[i, j]) for j in range(8)] for i in range(3)])
-        plt.subplots_adjust(wspace=0.1, hspace=0.2)
+        mean_abs_diff_wm_wm = torch.abs(diff_wm_wm).mean().item()
+        mean_abs_diff_nowm_wm = torch.abs(diff_nowm_wm).mean().item()
 
-        for i in range(3):
-            for j in range(8):
-                    ax[i, j].axis('off') 
+        title = f'PRC Watermark decoding with and without watermark'
+        save_path = f'{self.args.log_dir}/{self.method}_reversed_latents_{attack_name}_{attack_vals[strength]}.pdf'
 
-        for i in range(4):
-            ax[0, i].imshow(reversed_latents_wm[0, i].cpu().numpy(), cmap='OrRd', vmin=-4, vmax=4)
-            ax[1, i].imshow(np.abs(masked_diff_wm[0, i].cpu().numpy()), cmap='gray', vmin=0, vmax=10)
-            ax[2, i].imshow(np.abs(diff_wm[0, i].cpu().numpy()), cmap='gray', vmin=0, vmax=10)
-
-            ax[0, i+4].imshow(reversed_latents_nowm[0, i].cpu().numpy(), cmap='OrRd', vmin=-4, vmax=4)
-            ax[1, i+4].imshow(np.abs(masked_diff_nowm[0, i].cpu().numpy()), cmap='gray', vmin=0, vmax=10)
-            ax[2, i+4].imshow(np.abs(diff_nowm[0, i].cpu().numpy()), cmap='gray', vmin=0, vmax=10)
-
-        divider_line = plt.Line2D([0.5, 0.5], [0, 0.9], transform=fig.transFigure, color='black', linewidth=1)
-        fig.add_artist(divider_line)
-
-        ax[0, 0].set_title('Reversed latents with WM', loc='left', fontsize=16)
-        ax[1, 0].set_title(f'Abs. Diff. to WM pattern:\n{abs_diff_wm.sum():.3f} (mean {abs_diff_wm.mean():.3f})\nwith metric {metric_wm:.2f}', loc='left', fontsize=16) 
-        ax[2, 0].set_title('Abs. Diff. to ground truth WM latents', loc='left', fontsize=16)
-
-        ax[0, 4].set_title('Reversed latents with NOWM', loc='left', fontsize=16)
-        ax[1, 4].set_title(f'Abs. Diff. to WM pattern:\n{abs_diff_nowm.sum():.3f} (mean {abs_diff_nowm.mean():.3f})\nwith metric {metric_nowm:.2f}', loc='left', fontsize=16)
-        ax[2, 4].set_title('Abs. Diff. to ground truth NOWM latents', loc='left', fontsize=16)
-
-        fig.suptitle(f'PRC Watermark decoding with and without watermark', fontsize=20)
-        plt.tight_layout()
-        plt.savefig(f'{self.args.log_dir}/{self.method}_reversed_latents_{attack_name}_{attack_vals[strength]}.png',
-            bbox_inches='tight', 
-            pad_inches=0.1,
-            dpi=150)
-        plt.close(fig)
+        visualize_reversed_latents_spatial_domain(num_channels=self.latent_channels,
+                                                  reversed_latents_wm=reversed_latents_wm,
+                                                  reversed_latents_nowm=reversed_latents_nowm,
+                                                  diff_wm_wm=diff_wm_wm,
+                                                  diff_nowm_wm=diff_nowm_wm,
+                                                  diff_wm_true=diff_wm_true,
+                                                  diff_nowm_true=diff_nowm_true,
+                                                  metric_wm=metric_wm,
+                                                  metric_nowm=metric_nowm,
+                                                  mean_abs_diff_wm_wm=mean_abs_diff_wm_wm,
+                                                  mean_abs_diff_nowm_wm=mean_abs_diff_nowm_wm,
+                                                  mean_abs_diff_wm_true=mean_abs_diff_wm_true,
+                                                  mean_abs_diff_nowm_true=mean_abs_diff_nowm_true,
+                                                  title=title,
+                                                  save_path=save_path,
+                                                
+                                                  )
 
         

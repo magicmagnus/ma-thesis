@@ -3,6 +3,7 @@ import os
 import matplotlib.pyplot as plt
 import numpy as np
 
+from utils import setup_gridspec_figure
 
 # dict for saving names of axes/values
 attack_name_mapping = {
@@ -98,6 +99,13 @@ diff_model_markers = {
     },
 }
 
+wm_methods_names = {
+    'prc': 'PRC',
+    'gs': 'Gaussian Shading',
+    'rid': 'Ring ID',
+    'tr': 'Tree-Ring'
+}
+
 def merge_csv_files(input_dir, output_file):
     csv_files = []
     # walk through all files in the input_dir
@@ -144,7 +152,7 @@ def order_attack_strengths(order, attack_strengths, attack_results):
         
     return strengths[idx], results[idx]
 
-def main(args):
+def plot_per_method(args):
 
     merge_csv_files(args.input_dir, args.output_file)
 
@@ -223,6 +231,105 @@ def main(args):
 
     plt.savefig(args.output_plot)
 
+def plot_per_attack(args):
+
+    merge_csv_files(args.input_dir, args.output_file)
+
+    results_df = pd.read_csv(args.output_file)
+
+    set_fpr = 0.01 # results_df['set_fpr'].unique()[0]
+
+    attack_names = results_df['attack_name'].unique()
+    wm_methods = results_df['wm_method'].unique()
+    models = results_df['model_id'].unique()
+
+    # for each attack, plot all 4 WM methods in 4 sublpots, all 2 models as lines
+
+    ncols = 4 # per method
+    nrows = attack_names.shape[0] # for each attack
+    fs = 10
+    fs_title = 14
+    y_adj = 0.95
+    title_height_ratio = 0.8
+    title = f'Performance of watermarking methods under different attacks\n for experiments in {args.input_dir}'
+
+    fig, gs, title_axes = setup_gridspec_figure(
+        nrows=nrows, ncols=ncols,
+        fs=fs, title=title, fs_title=fs_title,
+        y_adj=y_adj, title_height_ratio=title_height_ratio,
+        sp_width=2, sp_height=1.75
+    )
+
+    # set the titles for each row, as the attack names
+    for i, ax in enumerate(title_axes):
+        ax.text(0.5, 0.25, attack_name_mapping[attack_names[i]]['name'], fontsize=fs_title, fontweight="bold", ha="center", va="center")
+                      
+    handles, labels = [], []
+
+    # loop through all attacks, and then per attack, loop through all WM methods
+    for i, attack_name in enumerate(attack_names):
+        attack_df = results_df[results_df['attack_name'] == attack_name]
+        if attack_name not in attack_name_mapping:
+            continue
+
+        axes = [fig.add_subplot(gs[2*i +1, j]) for j in range(ncols)]
+        for j, wm_method in enumerate(wm_methods):
+            wm_df = attack_df[attack_df['wm_method'] == wm_method]
+
+            if j != 0:
+                # disable y-axis labels for all but the first column
+                plt.setp(axes[j].get_yticklabels(), visible=False)
+
+            for model in models:
+                model_df = wm_df[wm_df['model_id'] == model]
+
+                if attack_name == 'no_attack':
+                    # No need to order the attack strengths for the no attack case
+                    strengths = model_df['attack_strength'].unique()
+                    results = model_df['tpr_empirical'].values
+                else:
+                    strengths, results = order_attack_strengths(
+                        attack_name_mapping[attack_name]['order'],
+                        model_df['attack_strength'], 
+                        model_df['tpr_empirical']
+                    )
+
+                label = diff_model_markers[model]['name']
+                
+                # Plot using actual strength values
+                line, = axes[j].plot(strengths, results,
+                            marker=diff_model_markers[model]['marker'],
+                            linestyle=diff_model_markers[model]['line'],
+                            label=label,
+                            color=diff_model_markers[model]['color'])
+                            
+                if label not in labels:
+                    handles.append(line)
+                    labels.append(label)
+
+            # Set only the actual strength values as ticks
+            axes[j].set_xticks(strengths)
+            axes[j].set_xticklabels(strengths)
+            
+            # Set axis direction based on attack type
+            if attack_name_mapping[attack_name]['order'] == 'low-to-high':
+                axes[j].invert_xaxis()
+                
+            axes[j].grid(True)
+            axes[j].set_title(wm_methods_names[wm_method])
+            axes[j].set_xlabel(attack_name_mapping[attack_name]['x_axis'])
+            axes[j].set_ylim([-0.1, 1.1])
+
+    
+    fig.legend(loc='lower center', ncol=len(models), handles=handles, labels=labels)
+    
+
+    plt.savefig(args.output_plot)
+    plt.show()
+
+        
+
+
 
 if __name__ == '__main__':
     import argparse
@@ -235,4 +342,5 @@ if __name__ == '__main__':
     args = parser.parse_args()
 
     args.output_plot = args.output_file.replace('.csv', '.png')
-    main(args)
+    #plot_per_method(args)
+    plot_per_attack(args)

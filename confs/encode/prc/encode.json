@@ -1,11 +1,12 @@
 {
   "model_id": "sd",
   "dataset_id": "mjprompts",
-  "num_images": 50,
+  "num_images": 5,
   "inf_steps": 50,
   "fpr": 0.01,
   "guidance_scale": 3.0,
   "test_inf_steps": 50,
+  "latent_channels_wm": 4,
   
   "calc_FID": false,
   "calc_CLIP": false,
@@ -15,7 +16,6 @@
   "inv_order": 0,
   "decoder_inv": true,
   "var": 1.5,
-  "latent_channels_wm": 4,
 
   "run_name": "prc_default"
 }

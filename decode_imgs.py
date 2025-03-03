@@ -51,6 +51,11 @@ def main(args):
     REFERENCE_MODEL_PRETRAIN = 'laion2b_s12b_b42k'
 
     device = 'cuda' if torch.cuda.is_available() else 'cpu'
+
+    # check if the latent_channels_wm is correct for the model
+    if args.model_id == 'sd' and args.latent_channels_wm != 4:
+        print('Warning: For the sd model, the latent_channels_wm should be 4\nSetting it to 4')
+        args.latent_channels_wm = 4
     
     log_dir, args.data_dir = get_dirs(args, 'decode_imgs')# , extra=args.run_name)
     args.log_dir = os.path.join(log_dir, f'{args.date}_{args.run_name}')
@@ -112,9 +117,33 @@ def main(args):
         ref_tokenizer = open_clip.get_tokenizer(REFERENCE_MODEL)
 
     # create the results dataframe
-    headers = ['wm_method', 'model_id', 'dataset_id', 'attack_type', 'attack_name', 'attack_strength', 'tpr_empirical', 'auc', 'acc', 'tpr_analytical', 'tpr_decode', 'tpr_traceability', 'threshold', 'mean_wm_dist', 'mean_no_wm_dist', 'clip_score_wm', 'clip_score_nowm', 'fid_score_wm', 'fid_score_nowm', 'set_fpr']
-    results_df = pd.DataFrame(columns=headers)
+    results_df = pd.DataFrame(columns=['wm_method', 'model_id', 'dataset_id', 'attack_type', 'attack_name', 'attack_strength', 'tpr_empirical', 'auc', 'acc', 'tpr_analytical', 'tpr_decode', 'tpr_traceability', 'threshold', 'mean_wm_dist', 'mean_no_wm_dist', 'wm_diff', 'nowm_diff', 'clip_score_wm', 'clip_score_nowm', 'fid_score_wm', 'fid_score_nowm', 'set_fpr'])
+    results_df = results_df.astype({
+        'wm_method': 'string',
+        'model_id': 'string', 
+        'dataset_id': 'string',
+        'attack_type': 'string',
+        'attack_name': 'string',
+        'attack_strength': 'float64',
+        'tpr_empirical': 'float64',
+        'auc': 'float64', 
+        'acc': 'float64',
+        'tpr_analytical': 'float64',
+        'tpr_decode': 'float64',
+        'tpr_traceability': 'float64',
+        'threshold': 'float64',
+        'mean_wm_dist': 'float64',
+        'mean_no_wm_dist': 'float64', 
+        'wm_diff': 'float64',
+        'nowm_diff': 'float64',
+        'clip_score_wm': 'float64',
+        'clip_score_nowm': 'float64',
+        'fid_score_wm': 'float64',
+        'fid_score_nowm': 'float64',
+        'set_fpr': 'float64'
+    })
 
+    # 
     distortions = ['r_degree', 'jpeg_ratio', 'crop_scale', 'crop_ratio', 'gaussian_blur_r', 'gaussian_std', 'brightness_factor', ]
     adversarial_embeds = ['adv_embed_resnet18', 'adv_embed_resnet50', 'adv_embed_klvae8', 'adv_embed_sdxlvae', 'adv_embed_klvae16']
     adversarial_surr = ['adv_surr_resnet18', 'adv_surr_resnet50']
@@ -154,6 +183,10 @@ def main(args):
         # clear the metrics before each attack
         no_wm_metrics = []
         wm_metrics = []
+
+        # total abs distances of the wm and no-wm samples to their respective true latents
+        wm_diffs = []
+        no_wm_diffs = []
     
         t_labels = []
         preds = []
@@ -252,6 +285,8 @@ def main(args):
                 wm_metrics.append(-w_metric)
             else:
                 RuntimeError('Invalid method')
+            wm_diffs.append((reversed_latents_wm - true_latents_wm).abs().mean().item()) # im image domain, the mean of the abs differences of the latents is the mean per-pixel difference
+            no_wm_diffs.append((reversed_latents_nowm - true_latents_nowm).abs().mean().item())
     
         # compute the results, the empirical ROC curve
         preds = no_wm_metrics +  wm_metrics
@@ -277,9 +312,8 @@ def main(args):
         print2file(args.log_file, f'\nTPR at fpr {args.fpr} (empirical)')
         print2file(args.log_file, f'\n\t{low}')
         print2file(args.log_file, f'\n(AUC: {auc}; ACC: {acc} at fpr {args.fpr})')
-        print2file(args.log_file, f'\nw_metrics: {wm_metrics}')
-        print2file(args.log_file, f'no_w_metrics: {no_wm_metrics}')
-        print2file(args.log_file, f'\nThreshold: {threshold} with mean wm dist: {np.mean(wm_metrics)} and mean no wm dist: {np.mean(no_wm_metrics)}')
+       
+        #print2file(args.log_file, f'\nThreshold: {threshold} with mean WM dist: {np.mean(wm_metrics)} and mean NOWM dist: {np.mean(no_wm_metrics)}')
         
         # Print all FPR, TPR, and thresholds
         print2file(args.log_file, '\nDetailed (empirical) ROC Curve Data:')
@@ -306,6 +340,15 @@ def main(args):
             print2file(args.log_file, f'\n\tTPR Detection: \t{tpr_detection} at fpr {args.fpr}' )
             print2file(args.log_file, f'\n\tTPR Decode: \t{tpr_decode} at fpr {args.fpr}' )
 
+        # additional stats
+        print2file(args.log_file, f'\n\nMean Metric for:')
+        print2file(args.log_file, f'\n\tWM: {np.mean(wm_metrics)} vs NOWM: {np.mean(no_wm_metrics)}')
+        print2file(args.log_file, f'\nwith Threshold: {threshold}')
+        print2file(args.log_file, f'\nWM metrics: {wm_metrics}')
+        print2file(args.log_file, f'NOWM metrics: {no_wm_metrics}')
+        print2file(args.log_file, f'\n\nMean per-pixel difference between true and reversed latents for:')
+        print2file(args.log_file, f'\n\tWM: {np.mean(wm_diffs)} vs NOWM: {np.mean(no_wm_diffs)}')
+
         # plot the ROC curve
         plt.figure()
         plt.plot(fpr, tpr)
@@ -316,7 +359,7 @@ def main(args):
         plt.ylabel('TPR')
         plt.title(f'ROC Curve for {args.method} with {attack_name}={attack_vals[strength]} \n with TPR@FPR={args.fpr} = {low:.3f}')
         plt.tight_layout()
-        plt.savefig(os.path.join(args.log_dir, f'roc_{attack_name}_{attack_vals[strength]}.png'))
+        plt.savefig(os.path.join(args.log_dir, f'roc_{attack_name}_{attack_vals[strength]}.pdf'))
         plt.close()
 
         clip_scores_wm = []
@@ -390,6 +433,8 @@ def main(args):
             'threshold': threshold,
             'mean_wm_dist': np.mean(wm_metrics),    
             'mean_no_wm_dist': np.mean(no_wm_metrics),
+            'wm_diff': np.mean(wm_diffs),
+            'nowm_diff': np.mean(no_wm_diffs),
             'clip_score_wm': clip_score_wm,
             'clip_score_nowm': clip_score_nowm,
             'fid_score_wm': fid_score_wm,

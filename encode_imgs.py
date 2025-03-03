@@ -45,6 +45,11 @@ def main(args):
     NUM_IMAGES_PER_PROMPT = 1
 
     device = 'cuda' if torch.cuda.is_available() else 'cpu'
+    
+    # check if the latent_channels_wm is correct for the model
+    if args.model_id == 'sd' and args.latent_channels_wm != 4:
+        print('Warning: For the sd model, the latent_channels_wm should be 4\nSetting it to 4')
+        args.latent_channels_wm = 4
 
     log_dir, args.data_dir = get_dirs(args, 'encoded_imgs')
     args.log_dir = os.path.join(log_dir, args.date)
