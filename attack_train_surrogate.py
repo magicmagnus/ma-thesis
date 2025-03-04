@@ -107,6 +107,8 @@ def main(args):
     plt.savefig(os.path.join(args.log_dir, 'learning_rate.png'))
     plt.close()
 
+    print2file(args.log_file, '\nFinished Training\n')
+
 
 
 

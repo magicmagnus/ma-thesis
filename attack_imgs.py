@@ -67,7 +67,7 @@ def main(args):
     elif args.dataset_id == 'sdprompts':
         all_prompts = [sample['Prompt'] for sample in load_dataset('Gustavosta/Stable-Diffusion-Prompts')['test']]
     elif args.dataset_id == 'mjprompts':
-        all_prompts = [sample['caption'] for sample in load_dataset('bghira/mj-v52-redux')['Collection_10']]
+        all_prompts = [sample['caption'] for sample in load_dataset('bghira/mj-v52-redux')['Collection_20']]
     else:
         print2file(args.log_file, 'Invalid dataset_id')
         return
@@ -221,6 +221,8 @@ def main(args):
 
 
         print2file(args.log_file, '\n\n' + '#'*100 + '\n')
+
+    print2file(args.log_file, '\nFinished Attacking\n')
     
 
 

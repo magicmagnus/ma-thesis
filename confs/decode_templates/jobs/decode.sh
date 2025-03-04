@@ -6,7 +6,7 @@
 # cd /fast/mkaut/ma-thesis
 # pip install -r prc/requirements.txt
 # echo "reinstalled required packages"
-# cd /fast/mkaut/ma-thesis/
+cd /fast/mkaut/ma-thesis/
 
 source /is/sg2/mkaut/miniconda3/bin/activate
 echo "activated conda env"

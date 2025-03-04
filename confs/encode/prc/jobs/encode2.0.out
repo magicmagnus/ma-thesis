@@ -1,0 +1,34 @@
+activated conda env
+
+####################################################################################################
+
+
+Starting Encode...
+
+Args:
+
+config: confs/encode/prc/encode.json
+model_id: flux
+dataset_id: mjprompts
+num_images: 5
+inf_steps: 50
+fpr: 0.01
+guidance_scale: 3.0
+test_inf_steps: 50
+latent_channels_wm: 16
+calc_FID: True
+calc_CLIP: True
+method: prc
+prc_t: 3
+inv_order: 0
+decoder_inv: True
+var: 1.5
+run_name: prc_default
+date: 2025-03-04_13-12-01
+data_dir: experiments/prc/flux/mjprompts/num_5_fpr_0.01_cfg_3.0_wmch_16/encoded_imgs/data
+log_dir: experiments/prc/flux/mjprompts/num_5_fpr_0.01_cfg_3.0_wmch_16/encoded_imgs/logs/2025-03-04_13-12-01
+log_file: <_io.TextIOWrapper name='experiments/prc/flux/mjprompts/num_5_fpr_0.01_cfg_3.0_wmch_16/encoded_imgs/logs/2025-03-04_13-12-01/prc_default.txt' mode='w' encoding='UTF-8'>
+
+Loaded PRC keys from file keys/prc_prct_3_fpr_0.01_ch_16.pkl
+
+Using FLUX model

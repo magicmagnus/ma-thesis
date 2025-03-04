@@ -155,6 +155,8 @@ def create_and_save_decode_confs(args):
     os.makedirs(output_conf_dir, exist_ok=True)
     os.makedirs(output_jobs_dir, exist_ok=True)
     os.makedirs(os.path.join(output_jobs_dir, "logs"), exist_ok=True)
+    os.makedirs(os.path.join(output_jobs_dir, "decode"), exist_ok=True)
+    os.makedirs(os.path.join(output_jobs_dir, "attack"), exist_ok=True)
 
     templates = [t for t in os.listdir(templates_dir) if t.endswith('.json')]
     # order alphabetically
@@ -165,22 +167,48 @@ def create_and_save_decode_confs(args):
     # so basically, in the templates are the decode.json files, and we wanna 
     # take our source (only one) encode.json that in args.config, and merge it with the decode.json files
     # so we first load the source, 
-    # then for all the templates, we load them, merge them with the source (double attributes are
-    # therefore taken from the templates), and save them in the output_conf_dir
-
+    
+    # the source is the encode.json file
     with open(args.config, 'r') as f:
         source = json.load(f)
 
     # open the job templates
+    # the decode.sh that calls the python script with the config file as argument
     with open(template_job_bash, 'r') as f:
         job_bash_all = f.read()
+    # and the decode.sub that submits the decode.sh to the cluster
     with open(template_job_sub, 'r') as f:
         job_sub_all = f.read()
 
-    job_bash_decode_all = job_bash_all
-    job_bash_attack_all = job_bash_all
 
-    for template in templates:
+
+    # these will by .sh files that submit all individual decode.sub (or attack.sub) files as separate jobs
+    submit_decode_all = ''
+    submit_attack_all = ''
+    
+
+    # per attack type, we need:
+    # (0. load the template and merge with source)
+    # 1. create new files in the decode_imgs folder:
+    #   1.1 create the .json file
+    #       - confs/[attack_name].json 
+    #   1.2 create the .sh files (one for decode, one for attack)
+    #       1.2.1 jobs/decode/[attack_name].sh
+    #       1.2.2 jobs/attack/[attack_name].sh
+    #       1.2.3 jobs/train_[attack_name].sh (only for 1 attack type)
+    #   1.3 create the .sub files (one for decode, one for attack)
+    #       1.3.1 jobs/decode/[attack_name].sub
+    #       1.3.2 jobs/attack/[attack_name].sub
+    #       1.3.3 jobs/train_[attack_name].sub (only for 1 attack type)
+    # 2. add line for that attack type to submit_decode_all and submit_attack_all
+
+    mem = 16000 if args.model_id == 'sd' else 40000 # in MB
+
+    for template in templates: # template has format "[attack_name].json"
+        
+        template_name = template.split(".")[0] # has format "[attack_name]"
+
+        # 0. load the template and merge with source
         with open(os.path.join(templates_dir, template), 'r') as f:
             decode = json.load(f)
 
@@ -189,96 +217,82 @@ def create_and_save_decode_confs(args):
         decode.update(source)
         decode['run_name'] = run_name
 
+        # 1. create new files in the decode_imgs folder:
+        # 1.1 create the .json file
         # save the merged
         with open(os.path.join(output_conf_dir, template), 'w') as f:
             json.dump(decode, f, indent=4)
 
-         # open the job templates
+        # 1.2 create the .sh files (one for decode, one for attack)
+        # open the .sh templates
         with open(template_job_bash, 'r') as f:
             job_bash = f.read()
-        with open(template_job_sub, 'r') as f:
-            job_sub = f.read()
-
-        # the job files, decode
+         
+        # 1.2.1 create the decode.sh file
         job_bash_decode = job_bash + f"\n/is/sg2/mkaut/miniconda3/bin/python decode_imgs.py --config {output_conf_dir}/{template}"
-        job_bash_decode_all += f"\n/is/sg2/mkaut/miniconda3/bin/python decode_imgs.py --config {output_conf_dir}/{template}"
-        # attack
+        # 1.2.2 create the attack.sh file
         job_bash_attack = job_bash + f"\n/is/sg2/mkaut/miniconda3/bin/python attack_imgs.py --config {output_conf_dir}/{template}"
-        job_bash_attack_all += f"\n/is/sg2/mkaut/miniconda3/bin/python attack_imgs.py --config {output_conf_dir}/{template}"
-
         
-
-        # save the job files as .sh files
-        os.makedirs(os.path.join(output_jobs_dir, "decode"), exist_ok=True)
-        os.makedirs(os.path.join(output_jobs_dir, "attack"), exist_ok=True)
-        template_name = template.split(".")[0]
+        # save .sh files
         with open(os.path.join(output_jobs_dir, "decode", f"{template_name}.sh"), 'w') as f:
             f.write(job_bash_decode)
         with open(os.path.join(output_jobs_dir, "attack", f"{template_name}.sh"), 'w') as f:
             f.write(job_bash_attack)
+
+    	# 1.2.3 create the train.sh file
         if 'surr' in template:
             job_bash_train = job_bash + f"\n/is/sg2/mkaut/miniconda3/bin/python attack_train_surrogate.py --config {output_conf_dir}/{template}"
             with open(os.path.join(output_jobs_dir, f"train_{template_name}.sh"), 'w') as f:
                 f.write(job_bash_train)
 
-
-        # to the sub file, add the final lines 
-        job_sub_decode = job_sub + f"\narguments = /fast/mkaut/ma-thesis/{output_jobs_dir}/decode/{template_name}.sh"
-        job_sub_decode += f"\nerror = /fast/mkaut/ma-thesis/{output_jobs_dir}/logs/{template_name}.$(Process).err"
-        job_sub_decode += f"\noutput = /fast/mkaut/ma-thesis/{output_jobs_dir}/logs/{template_name}.$(Process).out"
-        job_sub_decode += f"\nlog = /fast/mkaut/ma-thesis/{output_jobs_dir}/logs/{template_name}.$(Process).log"
-        # mem requirements: sd = ca 8G, flux ca 33G, clip ca 6G
-        job_sub_decode += f"\nrequest_memory = {18432 if args.model_id == 'sd' else 46080}" 
+        # 1.3 create the .sub files (one for decode, one for attack)
+        with open(template_job_sub, 'r') as f:
+            job_sub = f.read()
+        # 1.3.1 create the decode.sub file
+        job_sub_decode = job_sub + f"\narguments = /fast/mkaut/ma-thesis/{output_jobs_dir}/decode/decode_{template_name}.sh"
+        job_sub_decode += f"\nerror = /fast/mkaut/ma-thesis/{output_jobs_dir}/logs/decode_{template_name}.$(Process).err"
+        job_sub_decode += f"\noutput = /fast/mkaut/ma-thesis/{output_jobs_dir}/logs/decode_{template_name}.$(Process).out"
+        job_sub_decode += f"\nlog = /fast/mkaut/ma-thesis/{output_jobs_dir}/logs/decode_{template_name}.$(Process).log"
+        job_sub_decode += f"\nrequest_memory = {mem}" 
+        job_sub_decode += f"\nrequirements = TARGET.CUDAGlobalMemoryMb > {mem}"
         job_sub_decode += f"\nqueue"
 
-        job_sub_attack = job_sub + f"\narguments = /fast/mkaut/ma-thesis/{output_jobs_dir}/attack/{template_name}.sh"
-        job_sub_attack += f"\nerror = /fast/mkaut/ma-thesis/{output_jobs_dir}/logs/{template_name}.$(Process).err"
-        job_sub_attack += f"\noutput = /fast/mkaut/ma-thesis/{output_jobs_dir}/logs/{template_name}.$(Process).out"
-        job_sub_attack += f"\nlog = /fast/mkaut/ma-thesis/{output_jobs_dir}/logs/{template_name}.$(Process).log"
-        job_sub_attack += f"\nrequest_memory = {18432}"
+        # 1.3.2 create the attack.sub file
+        job_sub_attack = job_sub + f"\narguments = /fast/mkaut/ma-thesis/{output_jobs_dir}/attack/attack_{template_name}.sh"
+        job_sub_attack += f"\nerror = /fast/mkaut/ma-thesis/{output_jobs_dir}/logs/attack_{template_name}.$(Process).err"
+        job_sub_attack += f"\noutput = /fast/mkaut/ma-thesis/{output_jobs_dir}/logs/attack_{template_name}.$(Process).out"
+        job_sub_attack += f"\nlog = /fast/mkaut/ma-thesis/{output_jobs_dir}/logs/attack_{template_name}.$(Process).log"
+        job_sub_attack += f"\nrequest_memory = {mem}"
+        job_sub_attack += f"\nrequirements = TARGET.CUDAGlobalMemoryMb > {mem}"
         job_sub_attack += f"\nqueue"
 
-        # save the job files as .sub files
+        # save .sub files
         with open(os.path.join(output_jobs_dir, "decode", f"{template_name}.sub"), 'w') as f:
             f.write(job_sub_decode)
         with open(os.path.join(output_jobs_dir, "attack", f"{template_name}.sub"), 'w') as f:
             f.write(job_sub_attack)
+
+        # 1.3.3 create the train.sub file
         if 'surr' in template:
-            job_sub_train = job_sub + f"\narguments = /fast/mkaut/ma-thesis/{output_jobs_dir}/{template_name}.sh"
-            job_sub_train += f"\nerror = /fast/mkaut/ma-thesis/{output_jobs_dir}/logs/{template_name}.$(Process).err"
-            job_sub_train += f"\noutput = /fast/mkaut/ma-thesis/{output_jobs_dir}/logs/{template_name}.$(Process).out"
-            job_sub_train += f"\nlog = /fast/mkaut/ma-thesis/{output_jobs_dir}/logs/{template_name}.$(Process).log"
-            job_sub_train += f"\nrequest_memory = {18432}"
+            job_sub_train = job_sub + f"\narguments = /fast/mkaut/ma-thesis/{output_jobs_dir}/train_{template_name}.sh"
+            job_sub_train += f"\nerror = /fast/mkaut/ma-thesis/{output_jobs_dir}/logs/train_{template_name}.$(Process).err"
+            job_sub_train += f"\noutput = /fast/mkaut/ma-thesis/{output_jobs_dir}/logs/train_{template_name}.$(Process).out"
+            job_sub_train += f"\nlog = /fast/mkaut/ma-thesis/{output_jobs_dir}/logs/train_{template_name}.$(Process).log"
+            job_sub_train += f"\nrequest_memory = {10000}"
+            job_sub_train += f"\nrequirements = TARGET.CUDAGlobalMemoryMb > {10000}"
             job_sub_train += f"\nqueue"
             with open(os.path.join(output_jobs_dir, f"train_{template_name}.sub"), 'w') as f:
                 f.write(job_sub_train)
 
-    # save the job files as .sh files
-    with open(os.path.join(output_jobs_dir, "decode_all.sh"), 'w') as f:
-        f.write(job_bash_decode_all)
-    with open(os.path.join(output_jobs_dir, "attack_all.sh"), 'w') as f:
-        f.write(job_bash_attack_all)
+        # 2. add line for that attack type to submit_decode_all and submit_attack_all
+        submit_attack_all += f"condor_submit_bid 50 /fast/mkaut/ma-thesis/{output_jobs_dir}/attack/{template_name}.sub\n"
+        submit_decode_all += f"condor_submit_bid 50 /fast/mkaut/ma-thesis/{output_jobs_dir}/decode/{template_name}.sub\n"
 
-    # to the sub file, add the final lines
-    job_sub_decode_all = job_sub + f"\narguments = /fast/mkaut/ma-thesis/{output_jobs_dir}/decode_all.sh"
-    job_sub_decode_all += f"\nerror = /fast/mkaut/ma-thesis/{output_jobs_dir}/logs/decode_all.$(Process).err"
-    job_sub_decode_all += f"\noutput = /fast/mkaut/ma-thesis/{output_jobs_dir}/logs/decode_all.$(Process).out"
-    job_sub_decode_all += f"\nlog = /fast/mkaut/ma-thesis/{output_jobs_dir}/logs/decode_all.$(Process).log"
-    job_sub_decode_all += f"\nrequest_memory = {18432 if args.model_id == 'sd' else 18432 *2}"
-    job_sub_decode_all += f"\nqueue"
-
-    job_sub_attack_all = job_sub + f"\narguments = /fast/mkaut/ma-thesis/{output_jobs_dir}/attack_all.sh"
-    job_sub_attack_all += f"\nerror = /fast/mkaut/ma-thesis/{output_jobs_dir}/logs/attack_all.$(Process).err"
-    job_sub_attack_all += f"\noutput = /fast/mkaut/ma-thesis/{output_jobs_dir}/logs/attack_all.$(Process).out"
-    job_sub_attack_all += f"\nlog = /fast/mkaut/ma-thesis/{output_jobs_dir}/logs/attack_all.$(Process).log"
-    job_sub_attack_all += f"\nrequest_memory = {18432 if args.model_id == 'sd' else 18432 *2}"
-    job_sub_attack_all += f"\nqueue"
-
-    # save the job files as .sub files
-    with open(os.path.join(output_jobs_dir, "decode_all.sub"), 'w') as f:
-        f.write(job_sub_decode_all)
-    with open(os.path.join(output_jobs_dir, "attack_all.sub"), 'w') as f:
-        f.write(job_sub_attack_all)
+    # save the .sh submit files
+    with open(os.path.join(output_jobs_dir, "submit_decode_all.sh"), 'w') as f:
+        f.write(submit_decode_all)
+    with open(os.path.join(output_jobs_dir, "submit_attack_all.sh"), 'w') as f:
+        f.write(submit_attack_all)
 
 
 def setup_gridspec_figure(nrows, ncols, fs, title, fs_title, y_adj, title_height_ratio, sp_width=1.5, sp_height=1.5):

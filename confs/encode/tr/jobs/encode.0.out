@@ -7,7 +7,7 @@ Starting Encode...
 
 Args:
 
-config: confs/encode/rid/encode.json
+config: confs/encode/tr/encode.json
 model_id: flux
 dataset_id: mjprompts
 num_images: 500
@@ -18,28 +18,21 @@ test_inf_steps: 50
 latent_channels_wm: 16
 calc_FID: True
 calc_CLIP: True
-method: rid
-radius: 14
-radius_cutoff: 3
-ring_watermark_channel: [3]
-heter_watermark_channel: [0]
-watermark_seed: 0
-pattern_index: 682
-ring_width: 1
-ring_value_range: 64
-quantization_levels: 2
-assigned_keys: -1
-time_shift: 1
-time_shift_factor: 0.3
-fix_gt: 1
-channel_min: 0
+method: tr
+w_seed: 0
+w_channel: 3
+w_radius: 10
+w_mask_shape: circle
+w_injection: complex
+w_pattern: ring
+w_measurement: l1_complex
+w_pattern_const: 0
 run_name: tr_default
-date: 2025-03-03_17-19-30
-data_dir: experiments/rid/flux/mjprompts/num_500_fpr_0.01_cfg_3.0_wmch_16/encoded_imgs/data
-log_dir: experiments/rid/flux/mjprompts/num_500_fpr_0.01_cfg_3.0_wmch_16/encoded_imgs/logs/2025-03-03_17-19-30
-log_file: <_io.TextIOWrapper name='experiments/rid/flux/mjprompts/num_500_fpr_0.01_cfg_3.0_wmch_16/encoded_imgs/logs/2025-03-03_17-19-30/tr_default.txt' mode='w' encoding='UTF-8'>
-
-Loaded RingID keys from file keys/rid_seed_0_patidx_682_timeshift_1_tsfactor_0.3_fixgt_1_channels_16_assignedkeys_-1.pkl
+date: 2025-03-03_17-19-29
+data_dir: experiments/tr/flux/mjprompts/num_500_fpr_0.01_cfg_3.0_wmch_16/encoded_imgs/data
+log_dir: experiments/tr/flux/mjprompts/num_500_fpr_0.01_cfg_3.0_wmch_16/encoded_imgs/logs/2025-03-03_17-19-29
+log_file: <_io.TextIOWrapper name='experiments/tr/flux/mjprompts/num_500_fpr_0.01_cfg_3.0_wmch_16/encoded_imgs/logs/2025-03-03_17-19-29/tr_default.txt' mode='w' encoding='UTF-8'>
+Loaded TR keys from file keys/tr_ch_[3, 7, 11, 15]_r_10_p_ring_seed_0_wmch_16.pkl
 
 Using FLUX model
 
@@ -545,7 +538,7 @@ Prompts:
 498: children having fun very happy wearing outdoor clothes at an outdoor daytime event realistic cinematic image in 4k film style blurred background full of people hazy atmosphere kodak ektachrome
 499: flat flisch stone used by water
 
-Saving original images to experiments/rid/flux/mjprompts/num_500_fpr_0.01_cfg_3.0_wmch_16/encoded_imgs/data
+Saving original images to experiments/tr/flux/mjprompts/num_500_fpr_0.01_cfg_3.0_wmch_16/encoded_imgs/data
 
 
 Starting to generate images...

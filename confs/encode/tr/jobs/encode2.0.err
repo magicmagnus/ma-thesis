@@ -1,0 +1,9 @@
+/is/sg2/mkaut/miniconda3/lib/python3.10/site-packages/numba/np/ufunc/parallel.py:371: NumbaWarning: The TBB threading layer requires TBB version 2021 update 6 or later i.e., TBB_INTERFACE_VERSION >= 12060. Found TBB_INTERFACE_VERSION = 12050. The TBB threading layer is disabled.
+  warnings.warn(problem)
+Loading pipeline components...:   0%|          | 0/7 [00:00<?, ?it/s]Loading pipeline components...:  14%|█▍        | 1/7 [00:00<00:00,  9.54it/s]Loading pipeline components...:  29%|██▊       | 2/7 [00:28<01:24, 16.97s/it]Loading pipeline components...:  43%|████▎     | 3/7 [00:29<00:37,  9.37s/it]
+Loading checkpoint shards:   0%|          | 0/2 [00:00<?, ?it/s][A
+Loading checkpoint shards:  50%|█████     | 1/2 [00:01<00:01,  1.89s/it][A
+Loading checkpoint shards: 100%|██████████| 2/2 [00:03<00:00,  1.77s/it][ALoading checkpoint shards: 100%|██████████| 2/2 [00:03<00:00,  1.79s/it]
+Loading pipeline components...:  57%|█████▋    | 4/7 [00:35<00:24,  8.31s/it]Loading pipeline components...:  86%|████████▌ | 6/7 [00:36<00:03,  3.94s/it]You set `add_prefix_space`. The tokenizer needs to be converted from the slow tokenizers
+Loading pipeline components...: 100%|██████████| 7/7 [00:36<00:00,  2.95s/it]Loading pipeline components...: 100%|██████████| 7/7 [00:36<00:00,  5.19s/it]
+  0%|          | 0/5 [00:00<?, ?it/s]

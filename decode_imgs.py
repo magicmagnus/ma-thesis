@@ -96,7 +96,7 @@ def main(args):
     elif args.dataset_id == 'sdprompts':
         all_prompts = [sample['Prompt'] for sample in load_dataset('Gustavosta/Stable-Diffusion-Prompts')['test']]
     elif args.dataset_id == 'mjprompts':
-        all_prompts = [sample['caption'] for sample in load_dataset('bghira/mj-v52-redux')['Collection_10']]
+        all_prompts = [sample['caption'] for sample in load_dataset('bghira/mj-v52-redux')['Collection_20']]
     else:
         print2file(args.log_file, 'Invalid dataset_id')
         return
@@ -299,16 +299,7 @@ def main(args):
         low = tpr[index]
         threshold = thresholds[index]
 
-        print2file(args.log_file, '''
-                  ___                                      
-                 / _ \                                     
-                / /_\ \ ___ ___ _   _ _ __ __ _  ___ _   _ 
-                |  _  |/ __/ __| | | | '__/ _` |/ __| | | |
-                | | | | (_| (__| |_| | | | (_| | (__| |_| |
-                \_| |_/\___\___|\__,_|_|  \__,_|\___|\__, |
-                                                      __/ |
-                                                     |___/ 
-                ''')
+        print2file(args.log_file, '\n' + '#'*10 + '\n')
         print2file(args.log_file, f'\nTPR at fpr {args.fpr} (empirical)')
         print2file(args.log_file, f'\n\t{low}')
         print2file(args.log_file, f'\n(AUC: {auc}; ACC: {acc} at fpr {args.fpr})')
@@ -341,7 +332,8 @@ def main(args):
             print2file(args.log_file, f'\n\tTPR Decode: \t{tpr_decode} at fpr {args.fpr}' )
 
         # additional stats
-        print2file(args.log_file, f'\n\nMean Metric for:')
+        print2file(args.log_file, '\n' + '#'*10 + '\n')
+        print2file(args.log_file, f'\nMean Metric for:')
         print2file(args.log_file, f'\n\tWM: {np.mean(wm_metrics)} vs NOWM: {np.mean(no_wm_metrics)}')
         print2file(args.log_file, f'\nwith Threshold: {threshold}')
         print2file(args.log_file, f'\nWM metrics: {wm_metrics}')
@@ -382,16 +374,9 @@ def main(args):
             # calculate CLIP score between the generated images with and without watermark to the prompt with the reference model
             clip_score_wm = np.mean(clip_scores_wm)
             clip_score_nowm = np.mean(clip_scores_nowm)
-            print2file(args.log_file, '''
-              _____ _      _____ _____  
-             / ____| |    |_   _|  __ \ 
-            | |    | |      | | | |__) |
-            | |    | |      | | |  ___/ 
-            | |____| |____ _| |_| |     
-             \_____|______|_____|_|     
-                                    ''')
-            print2file(args.log_file, f'\nCLIP score with watermark: \n\n\t{clip_score_wm}')
-            print2file(args.log_file, f'\nCLIP score without watermark: \n\n\t{clip_score_nowm}')
+            print2file(args.log_file, '\n' + '#'*10 + '\n')
+            print2file(args.log_file, f'\nCLIP scores for:')
+            print2file(args.log_file, f'\n\tWM: {clip_score_wm:.4f} vs NOWM: {clip_score_nowm:.4f}')
 
         if args.calc_FID:
             # measure the FID between original and attacked images, both with and without watermark
@@ -405,16 +390,9 @@ def main(args):
                                                     device=device, 
                                                     dims=2048,
                                                     max_samples=args.num_images)
-            print2file(args.log_file, '''
-            ______ _____ _____  
-            |  ____|_   _|  __ \ 
-            | |__    | | | |  | |
-            |  __|   | | | |  | |
-            | |     _| |_| |__| |
-            |_|    |_____|_____/ 
-                        ''')
-            print2file(args.log_file, f'\nFID score with watermark for attack {attack_name}={attack_vals[strength]} for {args.num_images} samples: \n\n\t{fid_score_wm}')
-            print2file(args.log_file, f'\nFID score without watermark for attack {attack_name}={attack_vals[strength]} for {args.num_images} samples: \n\n\t{fid_score_nowm}')
+            print2file(args.log_file, '\n' + '#'*10 + '\n')
+            print2file(args.log_file, f'\nFID scores for:')
+            print2file(args.log_file, f'\n\tWM: {fid_score_wm:.4f} vs NOWM: {fid_score_nowm:.4f}')
             
         # collect results of one 'decode run' in a dictionary
         results = {
@@ -448,6 +426,8 @@ def main(args):
         results_df.to_csv(os.path.join(args.log_dir, f'results_{args.run_name}.csv'), index=False)
 
         print2file(args.log_file, '\n\n' + '#'*100 + '\n')
+
+    print2file(args.log_file, '\nFinished Decoding')
 
 
 

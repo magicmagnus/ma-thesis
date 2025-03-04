@@ -1,15 +1,15 @@
 {
-  "model_id": "sd",
+  "model_id": "flux",
   "dataset_id": "mjprompts",
-  "num_images": 5,
+  "num_images": 500,
   "inf_steps": 50,
   "fpr": 0.01,
   "guidance_scale": 3.0,
   "test_inf_steps": 50,
-  "latent_channels_wm": 4,
+  "latent_channels_wm": 16,
   
-  "calc_FID": false,
-  "calc_CLIP": false,
+  "calc_FID": true,
+  "calc_CLIP": true,
 
   "method": "prc",
   "prc_t": 3,

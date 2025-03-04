@@ -1,0 +1,34 @@
+activated conda env
+
+####################################################################################################
+
+
+Starting Encode...
+
+Args:
+
+config: confs/encode/gs/encode.json
+model_id: flux
+dataset_id: mjprompts
+num_images: 5
+inf_steps: 50
+fpr: 0.01
+guidance_scale: 3.0
+test_inf_steps: 50
+latent_channels_wm: 16
+calc_FID: True
+calc_CLIP: True
+method: gs
+gs_chacha: True
+gs_ch_factor: 1
+gs_hw_factor: 8
+gs_user_number: 1000000
+run_name: gs_default
+date: 2025-03-04_13-12-01
+data_dir: experiments/gs/flux/mjprompts/num_5_fpr_0.01_cfg_3.0_wmch_16/encoded_imgs/data
+log_dir: experiments/gs/flux/mjprompts/num_5_fpr_0.01_cfg_3.0_wmch_16/encoded_imgs/logs/2025-03-04_13-12-01
+log_file: <_io.TextIOWrapper name='experiments/gs/flux/mjprompts/num_5_fpr_0.01_cfg_3.0_wmch_16/encoded_imgs/logs/2025-03-04_13-12-01/gs_default.txt' mode='w' encoding='UTF-8'>
+
+Loaded GaussianShading watermark from file keys/gs_chacha_True_ch_1_hw_8_fpr_0.01_user_1000000_channels_16.pkl
+
+Using FLUX model
