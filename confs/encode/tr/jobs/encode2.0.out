@@ -8,14 +8,14 @@ Starting Encode...
 Args:
 
 config: confs/encode/tr/encode.json
-model_id: flux
+model_id: sd
 dataset_id: mjprompts
-num_images: 5
+num_images: 500
 inf_steps: 50
 fpr: 0.01
 guidance_scale: 3.0
 test_inf_steps: 50
-latent_channels_wm: 16
+latent_channels_wm: 4
 calc_FID: True
 calc_CLIP: True
 method: tr
@@ -28,23 +28,7 @@ w_pattern: ring
 w_measurement: l1_complex
 w_pattern_const: 0
 run_name: tr_default
-date: 2025-03-04_13-12-01
-data_dir: experiments/tr/flux/mjprompts/num_5_fpr_0.01_cfg_3.0_wmch_16/encoded_imgs/data
-log_dir: experiments/tr/flux/mjprompts/num_5_fpr_0.01_cfg_3.0_wmch_16/encoded_imgs/logs/2025-03-04_13-12-01
-log_file: <_io.TextIOWrapper name='experiments/tr/flux/mjprompts/num_5_fpr_0.01_cfg_3.0_wmch_16/encoded_imgs/logs/2025-03-04_13-12-01/tr_default.txt' mode='w' encoding='UTF-8'>
-Loaded TR keys from file keys/tr_ch_[3, 7, 11, 15]_r_10_p_ring_seed_0_wmch_16.pkl
-
-Using FLUX model
-
-Prompts:
-0: elegant moder medical cross with thick borders
-1: magic binoculars in the style of a pulp music video britpop pulp
-2: african american superman sitting in outer space having a drink looking down at the world photography magazine ultra-real 8k
-3: roaring african tiger whole body raindrops glamorous species raining distant shot a path between palm trees wide angle long-distance shot ultra realistic hyper detailed neutral cloud forest sony fe 24-70mm f28
-4: red white black bacground
-
-Saving original images to experiments/tr/flux/mjprompts/num_5_fpr_0.01_cfg_3.0_wmch_16/encoded_imgs/data
-
-
-Starting to generate images...
-
+date: 2025-03-04_17-25-49
+data_dir: experiments/tr/sd/mjprompts/num_500_fpr_0.01_cfg_3.0_wmch_4/encoded_imgs/data
+log_dir: experiments/tr/sd/mjprompts/num_500_fpr_0.01_cfg_3.0_wmch_4/encoded_imgs/logs/2025-03-04_17-25-49
+log_file: <_io.TextIOWrapper name='experiments/tr/sd/mjprompts/num_500_fpr_0.01_cfg_3.0_wmch_4/encoded_imgs/logs/2025-03-04_17-25-49/tr_default.txt' mode='w' encoding='UTF-8'>

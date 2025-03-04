@@ -8,14 +8,14 @@ Starting Encode...
 Args:
 
 config: confs/encode/rid/encode.json
-model_id: flux
+model_id: sd
 dataset_id: mjprompts
-num_images: 5
+num_images: 500
 inf_steps: 50
 fpr: 0.01
 guidance_scale: 3.0
 test_inf_steps: 50
-latent_channels_wm: 16
+latent_channels_wm: 4
 calc_FID: True
 calc_CLIP: True
 method: rid
@@ -34,11 +34,7 @@ time_shift_factor: 0.3
 fix_gt: 1
 channel_min: 0
 run_name: tr_default
-date: 2025-03-04_13-11-22
-data_dir: experiments/rid/flux/mjprompts/num_5_fpr_0.01_cfg_3.0_wmch_16/encoded_imgs/data
-log_dir: experiments/rid/flux/mjprompts/num_5_fpr_0.01_cfg_3.0_wmch_16/encoded_imgs/logs/2025-03-04_13-11-22
-log_file: <_io.TextIOWrapper name='experiments/rid/flux/mjprompts/num_5_fpr_0.01_cfg_3.0_wmch_16/encoded_imgs/logs/2025-03-04_13-11-22/tr_default.txt' mode='w' encoding='UTF-8'>
-
-Loaded RingID keys from file keys/rid_seed_0_patidx_682_timeshift_1_tsfactor_0.3_fixgt_1_channels_16_assignedkeys_-1.pkl
-
-Using FLUX model
+date: 2025-03-04_17-25-49
+data_dir: experiments/rid/sd/mjprompts/num_500_fpr_0.01_cfg_3.0_wmch_4/encoded_imgs/data
+log_dir: experiments/rid/sd/mjprompts/num_500_fpr_0.01_cfg_3.0_wmch_4/encoded_imgs/logs/2025-03-04_17-25-49
+log_file: <_io.TextIOWrapper name='experiments/rid/sd/mjprompts/num_500_fpr_0.01_cfg_3.0_wmch_4/encoded_imgs/logs/2025-03-04_17-25-49/tr_default.txt' mode='w' encoding='UTF-8'>

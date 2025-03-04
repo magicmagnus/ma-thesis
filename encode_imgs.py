@@ -1,6 +1,6 @@
 import os
 if 'is/sg2' in os.getcwd():
-    os.environ['CUDA_VISIBLE_DEVICES'] = '5'
+    os.environ['CUDA_VISIBLE_DEVICES'] = '7'
 import sys
 import json
 import torch
@@ -48,8 +48,8 @@ def main(args):
     
     # check if the latent_channels_wm is correct for the model
     if args.model_id == 'sd' and args.latent_channels_wm != 4:
-        print('Warning: For the sd model, the latent_channels_wm should be 4\nSetting it to 4')
-        args.latent_channels_wm = 4
+        raise ValueError('Warning: For the sd model, the latent_channels_wm should be 4')
+        
 
     log_dir, args.data_dir = get_dirs(args, 'encoded_imgs')
     args.log_dir = os.path.join(log_dir, args.date)
@@ -93,7 +93,7 @@ def main(args):
     elif args.dataset_id == 'sdprompts':
         all_prompts = [sample['Prompt'] for sample in load_dataset('Gustavosta/Stable-Diffusion-Prompts')['test']]
     elif args.dataset_id == 'mjprompts':
-        all_prompts = [sample['caption'] for sample in load_dataset('bghira/mj-v52-redux')['Collection_20']]
+        all_prompts = [sample['caption'] for sample in load_dataset('bghira/mj-v52-redux')['Collection_3']]
     else:
         print2file(args.log_file, 'Invalid dataset_id')
         return
