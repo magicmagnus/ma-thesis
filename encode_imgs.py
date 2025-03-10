@@ -14,7 +14,7 @@ from tqdm import tqdm
 
 from datasets import load_dataset
 
-from utils import seed_everything, print2file, get_dirs, create_and_save_decode_confs
+from utils import seed_everything, print2file, get_dirs, create_and_save_decode_confs, load_prompts
 
 # Add the source repositories to the path
 sys.path.append(os.path.join(os.path.dirname(__file__), 'prc'))
@@ -86,22 +86,24 @@ def main(args):
         print2file(args.log_file, 'Invalid method')
         return
 
-   # load the prompts
-    if args.dataset_id == 'coco':
-        with open('coco/captions_val2017.json') as f:
-            all_prompts = [ann['caption'] for ann in json.load(f)['annotations']]
-    elif args.dataset_id == 'sdprompts':
-        all_prompts = [sample['Prompt'] for sample in load_dataset('Gustavosta/Stable-Diffusion-Prompts')['test']]
-    elif args.dataset_id == 'mjprompts':
-        all_prompts = [sample['caption'] for sample in load_dataset('bghira/mj-v52-redux')['Collection_3']]
-    else:
-        print2file(args.log_file, 'Invalid dataset_id')
-        return
-    # sample the prompts
-    prompts = random.sample(all_prompts, args.num_images)
-    print2file(args.log_file,  '\nPrompts:')
-    for i, prompt in enumerate(prompts):
-        print2file(args.log_file, f'{i}: {prompt}')
+#    # load the prompts
+#     if args.dataset_id == 'coco':
+#         with open('coco/captions_val2017.json') as f:
+#             all_prompts = [ann['caption'] for ann in json.load(f)['annotations']]
+#     elif args.dataset_id == 'sdprompts':
+#         all_prompts = [sample['Prompt'] for sample in load_dataset('Gustavosta/Stable-Diffusion-Prompts')['test']]
+#     elif args.dataset_id == 'mjprompts':
+#         all_prompts = [sample['caption'] for sample in load_dataset('bghira/mj-v52-redux')['Collection_3']]
+#     else:
+#         print2file(args.log_file, 'Invalid dataset_id')
+#         return
+#     # sample the prompts
+#     prompts = random.sample(all_prompts, args.num_images)
+#     print2file(args.log_file,  '\nPrompts:')
+#     for i, prompt in enumerate(prompts):
+#         print2file(args.log_file, f'{i}: {prompt}')
+
+    prompts = load_prompts(args)
 
     
     if not os.path.exists(args.data_dir):

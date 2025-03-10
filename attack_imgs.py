@@ -14,7 +14,7 @@ from PIL import Image
 
 from datasets import load_dataset
 
-from utils import seed_everything, image_distortion, print2file, get_dirs
+from utils import seed_everything, image_distortion, print2file, get_dirs, load_prompts
 
 sys.path.append(os.path.join(os.path.dirname(__file__), 'treeringwatermark'))
 import treeringwatermark.open_clip as open_clip
@@ -60,22 +60,24 @@ def main(args):
     # set seed for internal WM viz and prompt loading
     seed_everything(0) # should be 0 cause it gets set to 0 later in the loop
 
-    # load the prompts
-    if args.dataset_id == 'coco':
-        with open('coco/captions_val2017.json') as f:
-            all_prompts = [ann['caption'] for ann in json.load(f)['annotations']]
-    elif args.dataset_id == 'sdprompts':
-        all_prompts = [sample['Prompt'] for sample in load_dataset('Gustavosta/Stable-Diffusion-Prompts')['test']]
-    elif args.dataset_id == 'mjprompts':
-        all_prompts = [sample['caption'] for sample in load_dataset('bghira/mj-v52-redux')['Collection_20']]
-    else:
-        print2file(args.log_file, 'Invalid dataset_id')
-        return
-    # sample the prompts
-    prompts = random.sample(all_prompts, args.num_images)
-    print2file(args.log_file,  '\nPrompts:')
-    for i, prompt in enumerate(prompts):
-        print2file(args.log_file, f'{i}: {prompt}')
+    # # load the prompts
+    # if args.dataset_id == 'coco':
+    #     with open('coco/captions_val2017.json') as f:
+    #         all_prompts = [ann['caption'] for ann in json.load(f)['annotations']]
+    # elif args.dataset_id == 'sdprompts':
+    #     all_prompts = [sample['Prompt'] for sample in load_dataset('Gustavosta/Stable-Diffusion-Prompts')['test']]
+    # elif args.dataset_id == 'mjprompts':
+    #     all_prompts = [sample['caption'] for sample in load_dataset('bghira/mj-v52-redux')['Collection_20']]
+    # else:
+    #     print2file(args.log_file, 'Invalid dataset_id')
+    #     return
+    # # sample the prompts
+    # prompts = random.sample(all_prompts, args.num_images)
+    # print2file(args.log_file,  '\nPrompts:')
+    # for i, prompt in enumerate(prompts):
+    #     print2file(args.log_file, f'{i}: {prompt}')
+
+    prompts = load_prompts(args)
 
     
     distortions = ['r_degree', 'jpeg_ratio', 'crop_scale', 'crop_ratio', 'gaussian_blur_r', 'gaussian_std', 'brightness_factor', ]

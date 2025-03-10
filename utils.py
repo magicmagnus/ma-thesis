@@ -8,6 +8,8 @@ from torchvision import transforms
 import matplotlib.gridspec as gridspec
 import matplotlib.pyplot as plt
 
+from datasets import load_dataset
+
 def print2file(logfile, *args):
     print(*args)
     print(file=logfile, *args)
@@ -37,6 +39,27 @@ def transform_img(image, target_size=512):
     )
     image = tform(image)
     return 2.0 * image - 1.0
+
+def load_prompts(args):
+    # load the prompts
+    if args.dataset_id == 'coco':
+        with open('coco/captions_val2017.json') as f:
+            all_prompts = [ann['caption'] for ann in json.load(f)['annotations']]
+    elif args.dataset_id == 'sdprompts':
+        all_prompts = [sample['Prompt'] for sample in load_dataset('Gustavosta/Stable-Diffusion-Prompts')['test']]
+    elif args.dataset_id == 'mjprompts':
+        all_prompts = [sample['caption'] for sample in load_dataset('bghira/mj-v52-redux')['Collection_3']]
+    else:
+        print2file(args.log_file, 'Invalid dataset_id')
+        return
+    # sample the prompts
+    prompts = random.sample(all_prompts, args.num_images)
+    print2file(args.log_file,  '\nPrompts:')
+    for i, prompt in enumerate(prompts):
+        print2file(args.log_file, f'{i}: {prompt}')
+
+    return prompts
+
 
 def image_distortion(img1, img2, seed, args, i, print_args=True):
     if print_args:
