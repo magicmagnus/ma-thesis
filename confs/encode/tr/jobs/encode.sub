@@ -1,8 +1,8 @@
 executable = /usr/bin/bash
 arguments = /fast/mkaut/ma-thesis/confs/encode/tr/jobs/encode.sh
-error = /fast/mkaut/ma-thesis/confs/encode/tr/jobs/encode2.$(Process).err
-output = /fast/mkaut/ma-thesis/confs/encode/tr/jobs/encode2.$(Process).out
-log = /fast/mkaut/ma-thesis/confs/encode/tr/jobs/encode2.$(Process).log
+error = /fast/mkaut/ma-thesis/confs/encode/tr/jobs/encode1.$(Process).err
+output = /fast/mkaut/ma-thesis/confs/encode/tr/jobs/encode1.$(Process).out
+log = /fast/mkaut/ma-thesis/confs/encode/tr/jobs/encode1.$(Process).log
 request_memory = 40000
 requirements = TARGET.CUDAGlobalMemoryMb > 40000
 request_disk = 10G

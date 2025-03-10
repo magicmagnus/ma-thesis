@@ -1,7 +1,0 @@
-/is/sg2/mkaut/miniconda3/lib/python3.10/site-packages/numba/np/ufunc/parallel.py:371: NumbaWarning: The TBB threading layer requires TBB version 2021 update 6 or later i.e., TBB_INTERFACE_VERSION >= 12060. Found TBB_INTERFACE_VERSION = 12050. The TBB threading layer is disabled.
-  warnings.warn(problem)
-Loading pipeline components...:   0%|          | 0/6 [00:00<?, ?it/s]Loading pipeline components...:  17%|█▋        | 1/6 [00:12<01:04, 12.90s/it]Loading pipeline components...:  33%|███▎      | 2/6 [00:13<00:22,  5.54s/it]Loading pipeline components...:  50%|█████     | 3/6 [00:16<00:13,  4.59s/it]Loading pipeline components...: 100%|██████████| 6/6 [00:35<00:00,  5.76s/it]Loading pipeline components...: 100%|██████████| 6/6 [00:35<00:00,  5.97s/it]
-  0%|          | 0/500 [00:00<?, ?it/s]/is/sg2/mkaut/miniconda3/lib/python3.10/site-packages/diffusers/pipelines/stable_diffusion/pipeline_stable_diffusion.py:308: FutureWarning: `_encode_prompt()` is deprecated and it will be removed in a future version. Use `encode_prompt()` instead. Also, be aware that the output format changed from a concatenated tensor to a tuple.
-  deprecate("_encode_prompt()", "1.0.0", deprecation_message, standard_warn=False)
-/is/sg2/mkaut/ma-thesis/pipes/modified_stable_diffusion.py:149: FutureWarning: Accessing config attribute `in_channels` directly via 'UNet2DConditionModel' object attribute is deprecated. Please access 'in_channels' over 'UNet2DConditionModel's config object instead, e.g. 'unet.config.in_channels'.
-  num_channels_latents = self.unet.in_channels

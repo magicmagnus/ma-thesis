@@ -6,5 +6,6 @@ arguments = /fast/mkaut/ma-thesis/plot_results.sh
 error = /fast/mkaut/ma-thesis/plot_results.$(Process).err
 output = /fast/mkaut/ma-thesis/plot_results.$(Process).out
 log = /fast/mkaut/ma-thesis/plot_results.$(Process).log
-request_memory = 1800
+
+request_memory = 2000
 queue

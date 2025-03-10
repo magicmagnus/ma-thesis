@@ -50,10 +50,11 @@ def image_distortion(img1, img2, seed, args, i, print_args=True):
             save_name += f"_rot{args.r_degree[i]}"
 
     if hasattr(args, 'jpeg_ratio'): # number between 0 and 100
-        img1.save(f"tmp_{args.jpeg_ratio[i]}.jpg", quality=args.jpeg_ratio[i])
-        img1 = Image.open(f"tmp_{args.jpeg_ratio[i]}.jpg")
-        img2.save(f"tmp_{args.jpeg_ratio[i]}.jpg", quality=args.jpeg_ratio[i])
-        img2 = Image.open(f"tmp_{args.jpeg_ratio[i]}.jpg")
+        path = os.path.join(args.log_dir, f"tmp_{args.jpeg_ratio[i]}.jpg")
+        img1.save(path, quality=args.jpeg_ratio[i])
+        img1 = Image.open(path)
+        img2.save(path, quality=args.jpeg_ratio[i])
+        img2 = Image.open(path)
         if print_args: 
             #print2file(args.log_file, f"Compressing images with JPEG quality {args.jpeg_ratio[i]}")
             save_name += f"_jpeg{args.jpeg_ratio[i]}"
@@ -202,7 +203,7 @@ def create_and_save_decode_confs(args):
     #       1.3.3 jobs/train_[attack_name].sub (only for 1 attack type)
     # 2. add line for that attack type to submit_decode_all and submit_attack_all
 
-    mem = 16000 if args.model_id == 'sd' else 40000 # in MB
+    mem = 16000 if args.model_id == 'sd' else 50000 # in MB
 
     for template in templates: # template has format "[attack_name].json"
         
@@ -249,7 +250,7 @@ def create_and_save_decode_confs(args):
         with open(template_job_sub, 'r') as f:
             job_sub = f.read()
         # 1.3.1 create the decode.sub file
-        job_sub_decode = job_sub + f"\narguments = /fast/mkaut/ma-thesis/{output_jobs_dir}/decode/decode_{template_name}.sh"
+        job_sub_decode = job_sub + f"\narguments = /fast/mkaut/ma-thesis/{output_jobs_dir}/decode/{template_name}.sh"
         job_sub_decode += f"\nerror = /fast/mkaut/ma-thesis/{output_jobs_dir}/logs/decode_{template_name}.$(Process).err"
         job_sub_decode += f"\noutput = /fast/mkaut/ma-thesis/{output_jobs_dir}/logs/decode_{template_name}.$(Process).out"
         job_sub_decode += f"\nlog = /fast/mkaut/ma-thesis/{output_jobs_dir}/logs/decode_{template_name}.$(Process).log"
@@ -258,7 +259,7 @@ def create_and_save_decode_confs(args):
         job_sub_decode += f"\nqueue"
 
         # 1.3.2 create the attack.sub file
-        job_sub_attack = job_sub + f"\narguments = /fast/mkaut/ma-thesis/{output_jobs_dir}/attack/attack_{template_name}.sh"
+        job_sub_attack = job_sub + f"\narguments = /fast/mkaut/ma-thesis/{output_jobs_dir}/attack/{template_name}.sh"
         job_sub_attack += f"\nerror = /fast/mkaut/ma-thesis/{output_jobs_dir}/logs/attack_{template_name}.$(Process).err"
         job_sub_attack += f"\noutput = /fast/mkaut/ma-thesis/{output_jobs_dir}/logs/attack_{template_name}.$(Process).out"
         job_sub_attack += f"\nlog = /fast/mkaut/ma-thesis/{output_jobs_dir}/logs/attack_{template_name}.$(Process).log"

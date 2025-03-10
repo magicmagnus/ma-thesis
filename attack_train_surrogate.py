@@ -74,7 +74,10 @@ def main(args):
     args_train.log_file = args.log_file
     args_train.log_dir = args.log_dir
 
-    train_accs, val_accs, losses, lrs = train_surrogate_classifier(args_train)
+    train_accs, val_accs, losses, lrs, save_path = train_surrogate_classifier(args_train)
+
+    # Save the trained model path
+    args.adv_surr_model_path = save_path
 
     # Save the training results as plots
     fig, ax1 = plt.subplots()
@@ -106,6 +109,11 @@ def main(args):
     plt.grid()
     plt.savefig(os.path.join(args.log_dir, 'learning_rate.png'))
     plt.close()
+
+    # Save the updated configuration back to the config file
+    config['adv_surr_model_path'] = args.adv_surr_model_path
+    with open(args.config, 'w') as f:
+        json.dump(config, f, indent=4)
 
     print2file(args.log_file, '\nFinished Training\n')
 

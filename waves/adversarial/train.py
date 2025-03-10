@@ -276,7 +276,7 @@ def train_surrogate_classifier(args):
         )
         torch.save(model.state_dict(), save_path_full)
         print2file(args.log_file, f"Entire model saved to {save_path_full}")
-    return train_accs, val_accs, losses, lrs
+    return train_accs, val_accs, losses, lrs, save_path_best
 
 
 if __name__ == "__main__":

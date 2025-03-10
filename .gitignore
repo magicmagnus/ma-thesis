@@ -170,3 +170,10 @@ keys/
 
 experiments/
 experiments2/
+
+experiments/*
+!experiments/**/*.csv
+
+
+*.out
+*.err
