@@ -1,0 +1,35 @@
+{
+  "model_id": "flux",
+  
+  "dataset_id": "mjprompts",
+  "num_images": 10,
+  "inf_steps": 50,
+  "fpr": 0.01,
+  "guidance_scale": 3.0,
+  "test_inf_steps": 50,
+  "latent_channels_wm": 16,
+  
+  "calc_FID": true,
+  "calc_CLIP": true,
+
+  "method": "rid",
+  "radius": 14,
+  "radius_cutoff": 3, 
+  "ring_watermark_channel": [3],
+  "heter_watermark_channel": [0],
+
+  "watermark_seed": 0,
+  "pattern_index": 682, 
+  "ring_width": 1,
+  "ring_value_range": 64,
+  "quantization_levels": 2,
+  "assigned_keys": -1,
+
+  "time_shift": 1,
+  "time_shift_factor": 0.3,
+  "fix_gt": 1,
+
+  "channel_min": 0,
+
+  "run_name": "tr_default"
+}

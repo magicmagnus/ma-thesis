@@ -1,0 +1,11 @@
+executable = /usr/bin/bash
+arguments = /fast/mkaut/ma-thesis/confs/encode/tr/jobs/encode_sd.sh
+error = /fast/mkaut/ma-thesis/confs/encode/tr/jobs/encode_sd.$(Process).err
+output = /fast/mkaut/ma-thesis/confs/encode/tr/jobs/encode_sd.$(Process).out
+log = /fast/mkaut/ma-thesis/confs/encode/tr/jobs/encode_sd.$(Process).log
+request_memory = 16000
+requirements = TARGET.CUDAGlobalMemoryMb > 16000
+request_disk = 10G
+request_cpus = 1
+request_gpus = 1
+queue

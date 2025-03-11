@@ -1,0 +1,27 @@
+{
+  "model_id": "sd",
+  "latent_channels_wm": 4,
+
+  "dataset_id": "mjprompts",
+  "num_images": 10,
+  "inf_steps": 50,
+  "fpr": 0.01,
+  "guidance_scale": 3.0,
+  "test_inf_steps": 50,
+  
+  "calc_FID": true,
+  "calc_CLIP": true,
+
+  "method": "tr",
+  "w_seed": 0,
+  "w_channel": 3,
+  "w_radius": 10,
+  "w_mask_shape": "circle",
+
+  "w_injection": "complex",
+  "w_pattern": "ring",
+  "w_measurement": "l1_complex",
+  "w_pattern_const": 0,
+
+  "run_name": "tr_default"
+}

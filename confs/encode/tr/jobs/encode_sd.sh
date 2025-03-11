@@ -20,5 +20,5 @@ export PYTHONNOUSERSITE=1
 # python -c "import sys; print(sys.path)"
 
 # Run the Python script with user site-packages disabled
-/is/sg2/mkaut/miniconda3/bin/python -s encode_imgs.py --config "confs/encode/tr/encode.json"
+/is/sg2/mkaut/miniconda3/bin/python -s encode_imgs.py --config "confs/encode/tr/encode_sd.json"
 

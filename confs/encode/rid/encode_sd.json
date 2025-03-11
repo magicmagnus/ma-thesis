@@ -1,12 +1,13 @@
 {
-  "model_id": "flux",
+  "model_id": "sd",
+  "latent_channels_wm": 4,
+
   "dataset_id": "mjprompts",
-  "num_images": 500,
+  "num_images": 10,
   "inf_steps": 50,
   "fpr": 0.01,
   "guidance_scale": 3.0,
   "test_inf_steps": 50,
-  "latent_channels_wm": 16,
   
   "calc_FID": true,
   "calc_CLIP": true,

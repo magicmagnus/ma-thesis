@@ -1,7 +1,8 @@
 {
   "model_id": "flux",
+
   "dataset_id": "mjprompts",
-  "num_images": 500,
+  "num_images": 10,
   "inf_steps": 50,
   "fpr": 0.01,
   "guidance_scale": 3.0,
@@ -11,11 +12,11 @@
   "calc_FID": true,
   "calc_CLIP": true,
 
-  "method": "gs",
-  "gs_chacha": true,
-  "gs_ch_factor": 1,
-  "gs_hw_factor": 8,
-  "gs_user_number": 1000000,
+  "method": "prc",
+  "prc_t": 3,
+  "inv_order": 0,
+  "decoder_inv": true,
+  "var": 1.5,
 
-  "run_name": "gs_default"
+  "run_name": "prc_default"
 }

@@ -1,7 +1,8 @@
 {
   "model_id": "flux",
+
   "dataset_id": "mjprompts",
-  "num_images": 500,
+  "num_images": 10,
   "inf_steps": 50,
   "fpr": 0.01,
   "guidance_scale": 3.0,

@@ -70,7 +70,7 @@ def adv_emb_attack(
         raise ValueError(f"Unsupported encoder: {encoder}")
     embedding_model = embedding_model.to(device)
     embedding_model.eval()
-    print("Embedding Model loaded!")
+    print("\nEmbedding Model loaded!")
 
     # load data
     transform = transforms.ToTensor()

@@ -226,7 +226,8 @@ def create_and_save_decode_confs(args):
     #       1.3.3 jobs/train_[attack_name].sub (only for 1 attack type)
     # 2. add line for that attack type to submit_decode_all and submit_attack_all
 
-    mem = 16000 if args.model_id == 'sd' else 50000 # in MB
+    decode_mem = 16000 if args.model_id == 'sd' else 50000 # in MB
+    attack_mem = 10000 # in MB
 
     for template in templates: # template has format "[attack_name].json"
         
@@ -277,8 +278,8 @@ def create_and_save_decode_confs(args):
         job_sub_decode += f"\nerror = /fast/mkaut/ma-thesis/{output_jobs_dir}/logs/decode_{template_name}.$(Process).err"
         job_sub_decode += f"\noutput = /fast/mkaut/ma-thesis/{output_jobs_dir}/logs/decode_{template_name}.$(Process).out"
         job_sub_decode += f"\nlog = /fast/mkaut/ma-thesis/{output_jobs_dir}/logs/decode_{template_name}.$(Process).log"
-        job_sub_decode += f"\nrequest_memory = {mem}" 
-        job_sub_decode += f"\nrequirements = TARGET.CUDAGlobalMemoryMb > {mem}"
+        job_sub_decode += f"\nrequest_memory = {decode_mem}" 
+        job_sub_decode += f"\nrequirements = TARGET.CUDAGlobalMemoryMb > {decode_mem}"
         job_sub_decode += f"\nqueue"
 
         # 1.3.2 create the attack.sub file
@@ -286,8 +287,15 @@ def create_and_save_decode_confs(args):
         job_sub_attack += f"\nerror = /fast/mkaut/ma-thesis/{output_jobs_dir}/logs/attack_{template_name}.$(Process).err"
         job_sub_attack += f"\noutput = /fast/mkaut/ma-thesis/{output_jobs_dir}/logs/attack_{template_name}.$(Process).out"
         job_sub_attack += f"\nlog = /fast/mkaut/ma-thesis/{output_jobs_dir}/logs/attack_{template_name}.$(Process).log"
-        job_sub_attack += f"\nrequest_memory = {mem}"
-        job_sub_attack += f"\nrequirements = TARGET.CUDAGlobalMemoryMb > {mem}"
+        if 'adv' in template:
+            # if its an adversarial attack, we need a GPU and more memory
+            job_sub_attack += f"\nrequest_memory = {attack_mem}"
+            job_sub_attack += f"\nrequirements = TARGET.CUDAGlobalMemoryMb > {attack_mem}"
+        else:
+            # if its not an adversarial attack, we can use the CPU and don't need a GPU
+            job_sub_attack += f"\nrequest_memory = 1000"
+            job_sub_attack += f"\nrequest_gpus = 0"
+
         job_sub_attack += f"\nqueue"
 
         # save .sub files
@@ -309,7 +317,9 @@ def create_and_save_decode_confs(args):
                 f.write(job_sub_train)
 
         # 2. add line for that attack type to submit_decode_all and submit_attack_all
-        submit_attack_all += f"condor_submit_bid 50 /fast/mkaut/ma-thesis/{output_jobs_dir}/attack/{template_name}.sub\n"
+        if not "default" in template_name:
+            # we only need to attack the non-default ones, the default is not a real attack
+            submit_attack_all += f"condor_submit_bid 50 /fast/mkaut/ma-thesis/{output_jobs_dir}/attack/{template_name}.sub\n"
         submit_decode_all += f"condor_submit_bid 50 /fast/mkaut/ma-thesis/{output_jobs_dir}/decode/{template_name}.sub\n"
 
     # save the .sh submit files

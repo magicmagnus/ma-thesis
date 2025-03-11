@@ -162,11 +162,13 @@ def order_attack_strengths(order, attack_strengths, attack_results):
     return strengths[idx], results[idx]
 
 def plot_per_attack(args):
-    
-    output_file = os.path.join(args.output_dir, args.dataset_identifier[0] + '_merged.csv')
-    merge_csv_for_dataset_identifier(args.input_dir, args.dataset_identifier, output_file)
 
-    results_df = pd.read_csv(output_file)
+
+    
+    
+    
+
+    results_df = pd.read_csv(args.output_csv)
 
     set_fpr = 0.01 # results_df['set_fpr'].unique()[0]
 
@@ -274,9 +276,22 @@ if __name__ == '__main__':
     args = parser.parse_args()
 
     # if we want to compare sd and flux, we merge wmch_16 and wmch_4
-    args.dataset_identifier = ['num_500_fpr_0.01_cfg_3.0_wmch_16', 'num_500_fpr_0.01_cfg_3.0_wmch_4'] 
+    args.dataset_identifier = ['num_10_fpr_0.01_cfg_3.0_wmch_16', 'num_10_fpr_0.01_cfg_3.0_wmch_4'] 
     # if, for any reason later, we want to compare only one of them, we can change the dataset_identifier
 
+    # extra 
+    args.output_dir = os.path.join(args.output_dir, '_results')
+    if not os.path.exists(args.output_dir):
+        os.makedirs(args.output_dir)
+
+    # where the plot will be saved
     args.output_plot = os.path.join(args.output_dir, args.dataset_identifier[0] + '_plot.png')
 
-    plot_per_attack(args)
+    # where the merged csv will be saved
+    args.output_csv = os.path.join(args.output_dir, args.dataset_identifier[0] + '_merged.csv')
+
+    # merge all csv matching the dataset_identifier in the input_dir into the output_csv
+    merge_csv_for_dataset_identifier(args.input_dir, args.dataset_identifier, args.output_csv)
+
+    # plot the results
+    plot_per_attack(args)   
