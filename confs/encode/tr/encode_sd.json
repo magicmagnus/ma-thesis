@@ -3,7 +3,7 @@
   "latent_channels_wm": 4,
 
   "dataset_id": "mjprompts",
-  "num_images": 10,
+  "num_images": 100,
   "inf_steps": 50,
   "fpr": 0.01,
   "guidance_scale": 3.0,

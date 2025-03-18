@@ -146,7 +146,7 @@ def main(args):
 
     print2file(args.log_file, '\n' + '#'*100 + '\n')
 
-    print2file(args.log_file, '\nFinished Encoding\n')
+    print2file(args.log_file, '\nFINISHED JOB\n')
 
 
 

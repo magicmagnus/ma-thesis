@@ -60,6 +60,43 @@ def load_prompts(args):
 
     return prompts
 
+def bootstrap_tpr(no_wm_metrics, wm_metrics, fpr_target, n_bootstraps=1000):
+    import numpy as np
+    from sklearn import metrics
+    from scipy.stats import norm
+    
+    tpr_samples = []
+    n_wm = len(wm_metrics)
+    n_nowm = len(no_wm_metrics)
+
+    for _ in range(n_bootstraps):
+        # Bootstrap resample
+        wm_resample = np.random.choice(wm_metrics, size=n_wm, replace=True)
+        nowm_resample = np.random.choice(no_wm_metrics, size=n_nowm, replace=True)
+
+        # Compute ROC curve
+        preds = list(nowm_resample) + list(wm_resample)
+        labels = [0] * len(nowm_resample) + [1] * len(wm_resample)
+        fpr, tpr, thresholds = metrics.roc_curve(labels, preds, pos_label=1)
+
+        # Find TPR at the given FPR
+        idx = np.where(fpr <= fpr_target)[0][-1]  # Last index where fpr <= target
+        tpr_samples.append(tpr[idx])
+
+    # Compute statistics
+    tpr_samples = np.array(tpr_samples)
+    tpr_mean = np.mean(tpr_samples)
+    tpr_std = np.std(tpr_samples)  # Standard error estimate
+
+    # Confidence intervals (normal approximation)
+    ci_lower = tpr_mean - 1.96 * tpr_std
+    ci_upper = tpr_mean + 1.96 * tpr_std
+
+    # OR Percentile confidence intervals
+    ci_lower_perc, ci_upper_perc = np.percentile(tpr_samples, [2.5, 97.5])
+
+    return tpr_mean, tpr_std, (ci_lower, ci_upper), (ci_lower_perc, ci_upper_perc)
+
 
 def image_distortion(img1, img2, seed, args, i, print_args=True):
     if print_args:

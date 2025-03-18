@@ -16,7 +16,7 @@ import matplotlib.pyplot as plt
 
 from datasets import load_dataset
 
-from utils import seed_everything, print2file, get_dirs, load_prompts
+from utils import seed_everything, print2file, get_dirs, load_prompts, bootstrap_tpr
 
 # Add the src directory to the Python path
 sys.path.append(os.path.join(os.path.dirname(__file__), 'prc'))
@@ -119,7 +119,7 @@ def main(args):
         ref_tokenizer = open_clip.get_tokenizer(REFERENCE_MODEL)
 
     # create the results dataframe
-    results_df = pd.DataFrame(columns=['wm_method', 'model_id', 'dataset_id', 'attack_type', 'attack_name', 'attack_strength', 'tpr_empirical', 'auc', 'acc', 'tpr_analytical', 'tpr_decode', 'tpr_traceability', 'threshold', 'mean_wm_dist', 'mean_no_wm_dist', 'wm_diff', 'nowm_diff', 'clip_score_wm', 'clip_score_nowm', 'fid_score_wm', 'fid_score_nowm', 'set_fpr'])
+    results_df = pd.DataFrame(columns=['wm_method', 'model_id', 'dataset_id', 'attack_type', 'attack_name', 'attack_strength', 'tpr_empirical', 'tpr_empirical_mean', 'tpr_std_error', 'tpr_ci_lower_percentile', 'tpr_ci_upper_percentile',  'auc', 'acc', 'tpr_analytical', 'tpr_decode', 'tpr_traceability', 'threshold', 'mean_wm_dist', 'mean_no_wm_dist', 'wm_diff', 'nowm_diff', 'clip_score_wm', 'clip_score_nowm', 'fid_wm_coco', 'fid_nowm_coco', 'fid_wm_nowm', 'set_fpr'])
     results_df = results_df.astype({
         'wm_method': 'string',
         'model_id': 'string', 
@@ -128,6 +128,10 @@ def main(args):
         'attack_name': 'string',
         'attack_strength': 'float64',
         'tpr_empirical': 'float64',
+        'tpr_empirical_mean': 'float64',
+        'tpr_std_error': 'float64',
+        'tpr_ci_lower_percentile': 'float64',
+        'tpr_ci_upper_percentile': 'float64',
         'auc': 'float64', 
         'acc': 'float64',
         'tpr_analytical': 'float64',
@@ -140,8 +144,9 @@ def main(args):
         'nowm_diff': 'float64',
         'clip_score_wm': 'float64',
         'clip_score_nowm': 'float64',
-        'fid_score_wm': 'float64',
-        'fid_score_nowm': 'float64',
+        'fid_wm_coco': 'float64',
+        'fid_nowm_coco': 'float64',
+        'fid_wm_nowm': 'float64',
         'set_fpr': 'float64'
     })
 
@@ -291,7 +296,7 @@ def main(args):
             no_wm_diffs.append((reversed_latents_nowm - true_latents_nowm).abs().mean().item())
     
         # compute the results, the empirical ROC curve
-        preds = no_wm_metrics +  wm_metrics
+        preds = no_wm_metrics + wm_metrics
         t_labels = [0] * len(no_wm_metrics) + [1] * len(wm_metrics)
         fpr, tpr, thresholds = metrics.roc_curve(t_labels, preds, pos_label=1)
         auc = metrics.auc(fpr, tpr)
@@ -307,6 +312,13 @@ def main(args):
         print2file(args.log_file, f'\n(AUC: {auc}; ACC: {acc} at fpr {args.fpr})')
        
         #print2file(args.log_file, f'\nThreshold: {threshold} with mean WM dist: {np.mean(wm_metrics)} and mean NOWM dist: {np.mean(no_wm_metrics)}')
+
+        tpr_mean, tpr_std, ci_normal, ci_percentile = bootstrap_tpr(no_wm_metrics, wm_metrics, args.fpr)
+
+        print2file(args.log_file, f'\nTPR at fpr {args.fpr} (empirical mean): {tpr_mean:.4f}')
+        print2file(args.log_file, f'Standard Error: {tpr_std:.4f}')
+        print2file(args.log_file, f'95% CI (Normal Approximation): [{ci_normal[0]:.4f}, {ci_normal[1]:.4f}]')
+        print2file(args.log_file, f'95% CI (Percentile Method): [{ci_percentile[0]:.4f}, {ci_percentile[1]:.4f}]')
         
         # Print all FPR, TPR, and thresholds
         print2file(args.log_file, '\nDetailed (empirical) ROC Curve Data:')
@@ -367,8 +379,9 @@ def main(args):
                 clip_scores_nowm.append(sims[0].item())
                 clip_scores_wm.append(sims[1].item())
 
-        fid_score_wm = None
-        fid_score_nowm = None
+        fid_wm_coco = None
+        fid_nowm_coco = None
+        fid_wm_nowm = None
         clip_score_wm = None
         clip_score_nowm = None
         
@@ -382,19 +395,25 @@ def main(args):
 
         if args.calc_FID:
             # measure the FID between original and attacked images, both with and without watermark
-            fid_score_wm = calculate_fid_given_paths([path_attacked_wm, '/is/sg2/mkaut/ma-thesis/coco/val2017'], 
+            fid_wm_coco = calculate_fid_given_paths([path_attacked_wm, '/is/sg2/mkaut/ma-thesis/coco/val2017'], 
                                                     batch_size=50, 
                                                     device=device, 
                                                     dims=2048,
                                                     max_samples=args.num_images)
-            fid_score_nowm = calculate_fid_given_paths([path_attacked_nowm, '/is/sg2/mkaut/ma-thesis/coco/val2017'], 
+            fid_nowm_coco = calculate_fid_given_paths([path_attacked_nowm, '/is/sg2/mkaut/ma-thesis/coco/val2017'], 
+                                                    batch_size=50, 
+                                                    device=device, 
+                                                    dims=2048,
+                                                    max_samples=args.num_images)
+            fid_wm_nowm = calculate_fid_given_paths([path_attacked_wm, path_attacked_nowm], 
                                                     batch_size=50, 
                                                     device=device, 
                                                     dims=2048,
                                                     max_samples=args.num_images)
             print2file(args.log_file, '\n' + '#'*10 + '\n')
-            print2file(args.log_file, f'\nFID scores for:')
-            print2file(args.log_file, f'\n\tWM: {fid_score_wm:.4f} vs NOWM: {fid_score_nowm:.4f}')
+            print2file(args.log_file, f'\nFID (distances) :')
+            print2file(args.log_file, f'\n\tagainst COCO for WM: {fid_wm_coco:.4f} vs NOWM: {fid_nowm_coco:.4f}')
+            print2file(args.log_file, f'\n\tWM against NOWM: {fid_wm_nowm:.4f}')
             
         # collect results of one 'decode run' in a dictionary
         results = {
@@ -405,6 +424,10 @@ def main(args):
             'attack_name': attack_name,
             'attack_strength': attack_vals[strength],
             'tpr_empirical': low,
+            'tpr_empirical_mean': tpr_mean,
+            'tpr_std_error': tpr_std,
+            'tpr_ci_lower_percentile': ci_percentile[0],
+            'tpr_ci_upper_percentile': ci_percentile[1], 
             'auc': auc,
             'acc': acc,
             'tpr_analytical': tpr_detection,
@@ -417,8 +440,9 @@ def main(args):
             'nowm_diff': np.mean(no_wm_diffs),
             'clip_score_wm': clip_score_wm,
             'clip_score_nowm': clip_score_nowm,
-            'fid_score_wm': fid_score_wm,
-            'fid_score_nowm': fid_score_nowm,
+            'fid_wm_coco': fid_wm_coco, # technically, FID is not a score, but a distance, so save it as such
+            'fid_nowm_coco': fid_nowm_coco,
+            'fid_wm_nowm': fid_wm_nowm,
             'set_fpr': args.fpr
         }
 
@@ -429,7 +453,7 @@ def main(args):
 
         print2file(args.log_file, '\n\n' + '#'*100 + '\n')
 
-    print2file(args.log_file, '\nFinished Decoding')
+    print2file(args.log_file, '\nFINISHED JOB\n')
 
 
 

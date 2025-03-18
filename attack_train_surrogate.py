@@ -115,7 +115,7 @@ def main(args):
     with open(args.config, 'w') as f:
         json.dump(config, f, indent=4)
 
-    print2file(args.log_file, '\nFinished Training\n')
+    print2file(args.log_file, '\nFINISHED JOB\n')
 
 
 

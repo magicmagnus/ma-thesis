@@ -139,15 +139,16 @@ def merge_csv_for_dataset_identifier(experiments_dir, dataset_identifiers, outpu
     combined_df.to_csv(output_file, index=False)
     print(f'Saved merged CSV to {output_file}')
 
-def order_attack_strengths(order, attack_strengths, attack_results):
+def order_attack_strengths(order, attack_strengths, attack_results, ci_lower, ci_upper):
     """Orders attack strengths based on difficulty"""
     # Convert series to numpy for easier manipulation
     strengths = attack_strengths.values
     results = attack_results.values
+    ci_lower = ci_lower.values
+    ci_upper = ci_upper.values
 
     # print dtypes of strengths and results
-    #print(f'strengths: {strengths.dtype}, results: {results.dtype}')
-    #print(f'strengths: {strengths}, results: {results}')
+   
     # elements in strengths are strings, convert to float
     strengths = strengths.astype(float)
     
@@ -159,22 +160,22 @@ def order_attack_strengths(order, attack_strengths, attack_results):
         idx = np.argsort(-strengths)  # Sort in descending order
         
         
-    return strengths[idx], results[idx]
+    return strengths[idx], results[idx], ci_lower[idx], ci_upper[idx]
 
-def plot_per_attack(args):
+# plots the tpr_empirical for each attack_strength for each model
+# has [num_attacks] rows, each row has [num_methods] subplots/cols, each subplot has [num_models] lines
+def plot_tpr_per_attack(args,results_df):
 
+    #results_df = pd.read_csv(args.output_csv)
 
-    
-    
-    
-
-    results_df = pd.read_csv(args.output_csv)
-
-    set_fpr = 0.01 # results_df['set_fpr'].unique()[0]
+    results_df['set_fpr'].unique()[0] # set_fpr should be the same for all experiments, so we can just take the first value
 
     attack_names = results_df['attack_name'].unique()
     wm_methods = results_df['wm_method'].unique()
     models = results_df['model_id'].unique()
+
+    # order the attacks based on the order in attack_name_mapping
+    attack_names = np.array(sorted(attack_names, key=lambda x: list(attack_name_mapping.keys()).index(x)))
 
     # for each attack, plot all 4 WM methods in 4 sublpots, all 2 models as lines
 
@@ -184,7 +185,7 @@ def plot_per_attack(args):
     fs_title = 14
     y_adj = 0.95
     title_height_ratio = 0.8
-    title = f'Performance of watermarking methods under different attacks\n for experiments in {args.dataset_identifier}'
+    title = f'Performance of watermarking methods under different attacks\n for experiments in \n{args.dataset_identifier}'
 
     fig, gs, title_axes = setup_gridspec_figure(
         nrows=nrows, ncols=ncols,
@@ -212,21 +213,29 @@ def plot_per_attack(args):
             if j != 0:
                 # disable y-axis labels for all but the first column
                 plt.setp(axes[j].get_yticklabels(), visible=False)
+            else:
+                # Add y-axis label to the first plot in each row
+                axes[j].set_ylabel("TPR@FPR=0.01")
 
             for model in models:
                 model_df = wm_df[wm_df['model_id'] == model]
+                print(f'\n\tplotting {attack_name}, {wm_method}, {model}')
 
                 if attack_name == 'no_attack':
                     # No need to order the attack strengths for the no attack case
                     strengths = model_df['attack_strength'].unique()
                     results = model_df['tpr_empirical'].values
+                    ci_lower = model_df['tpr_ci_lower_percentile'].values
+                    ci_upper = model_df['tpr_ci_upper_percentile'].values
                 else:
-                    strengths, results = order_attack_strengths(
+                    strengths, results, ci_lower, ci_upper = order_attack_strengths(
                         attack_name_mapping[attack_name]['order'],
                         model_df['attack_strength'], 
-                        model_df['tpr_empirical']
+                        model_df['tpr_empirical'],
+                        model_df['tpr_ci_lower_percentile'],
+                        model_df['tpr_ci_upper_percentile']
                     )
-
+                
                 label = diff_model_markers[model]['name']
                 
                 # Plot using actual strength values
@@ -235,6 +244,13 @@ def plot_per_attack(args):
                             linestyle=diff_model_markers[model]['line'],
                             label=label,
                             color=diff_model_markers[model]['color'])
+                # pllot the CI as a shaded region
+                #only if there are no NaN values in the CI or the lists are not empty
+                if (not np.isnan(ci_lower).any() and not np.isnan(ci_upper).any()) or (len(ci_lower) > 0 and len(ci_upper) > 0):
+                    print(f'\t\tplotting CI for {attack_name}, {wm_method}, {model}')
+                    print(f'\t\tci_lower: {ci_lower}')
+                    axes[j].fill_between(strengths, ci_lower, ci_upper, color=diff_model_markers[model]['color'], alpha=0.2)
+
                             
                 if label not in labels:
                     handles.append(line)
@@ -259,6 +275,137 @@ def plot_per_attack(args):
 
     plt.savefig(args.output_plot)
     plt.show()
+    print(f"\nPlot saved to {args.output_plot}")
+
+
+
+def plot_tpr_per_metric(args, results_df, metric_name, metric_column, title_suffix, xlabel, xlim):
+    """
+    Generic plotting function that can use any metric for the x-axis
+    
+    Parameters:
+    - args: The command line arguments
+    - metric_name: String identifier for the metric (used in filenames)
+    - metric_column: Name of the column to use for x-axis values
+    - title_suffix: Text to add to the plot title
+    - xlabel: Label for the x-axis
+    """
+    # results_df = pd.read_csv(args.output_csv)
+    
+    attack_names = results_df['attack_name'].unique()
+    wm_methods = results_df['wm_method'].unique()
+    models = results_df['model_id'].unique()
+
+    attack_names = np.array(sorted(attack_names, key=lambda x: list(attack_name_mapping.keys()).index(x)))
+
+    # Setup figure with same layout
+    ncols = 4  # per method
+    nrows = attack_names.shape[0]  # for each attack
+    fs = 10
+    fs_title = 14
+    y_adj = 0.95
+    title_height_ratio = 0.8
+    title = f'Watermarking performance vs {title_suffix}\n for experiments in \n{args.dataset_identifier}'
+
+    fig, gs, title_axes = setup_gridspec_figure(
+        nrows=nrows, ncols=ncols,
+        fs=fs, title=title, fs_title=fs_title,
+        y_adj=y_adj, title_height_ratio=title_height_ratio,
+        sp_width=2, sp_height=1.75
+    )
+
+    # Set row titles (attack names)
+    for i, ax in enumerate(title_axes):
+        ax.text(0.5, 0.25, attack_name_mapping[attack_names[i]]['name'], 
+                fontsize=fs_title, fontweight="bold", ha="center", va="center")
+                      
+    handles, labels = [], []
+
+    #xmin = results_df[metric_column].min()
+    #xmax = results_df[metric_column].max()
+    #print(f"Min {metric_name}: {xmin}, Max {metric_name}: {xmax}")
+
+    # Loop through attacks and watermarking methods
+    for i, attack_name in enumerate(attack_names):
+        attack_df = results_df[results_df['attack_name'] == attack_name]
+        if attack_name not in attack_name_mapping:
+            continue
+
+        axes = [fig.add_subplot(gs[2*i +1, j]) for j in range(ncols)]
+        for j, wm_method in enumerate(wm_methods):
+            wm_df = attack_df[attack_df['wm_method'] == wm_method]
+
+            if j != 0:
+                # Disable y-axis labels for all but the first column
+                plt.setp(axes[j].get_yticklabels(), visible=False)
+            else:
+                # Add y-axis label to the first plot in each row
+                axes[j].set_ylabel("TPR@FPR=0.01")
+
+
+            for model in models:
+                model_df = wm_df[wm_df['model_id'] == model]
+                
+                # Check if the metric column exists
+                if metric_column not in model_df.columns:
+                    print(f"Warning: {metric_column} not found for {attack_name}, {wm_method}, {model}")
+                    continue
+
+                # Sort by the metric column
+                df_sorted = model_df.sort_values(by=metric_column)
+                x_values = df_sorted[metric_column].values
+                tpr_values = df_sorted['tpr_empirical'].values
+                attack_strengths = df_sorted['attack_strength'].values
+
+                label = diff_model_markers[model]['name']
+                
+                line, = axes[j].plot(x_values, tpr_values,
+                            marker=diff_model_markers[model]['marker'],
+                            linestyle=diff_model_markers[model]['line'],
+                            label=label,
+                            color=diff_model_markers[model]['color'])
+                
+                # Add attack strength as text near each point for reference
+                for k, (x, y, strength) in enumerate(zip(x_values, tpr_values, attack_strengths)):
+                    if k % 2 == 0:  # Only label every other point to avoid clutter
+                        axes[j].annotate(f"{strength}", (x, y), 
+                                         textcoords="offset points", 
+                                         xytext=(0, 5), 
+                                         ha='center',
+                                         fontsize=7)
+                            
+                if label not in labels:
+                    handles.append(line)
+                    labels.append(label)
+
+            axes[j].grid(True)
+            axes[j].set_title(wm_methods_names[wm_method])
+            axes[j].set_xlabel(xlabel)
+            axes[j].set_ylim([-0.1, 1.1])
+            axes[j].set_xlim(xlim)
+            
+            # For quality metrics (like CLIP similarity score), higher is better, 
+            # so have higher values to the left
+            if "score" in metric_column.lower() or "similarity" in metric_column.lower():
+                #print(f"enter score for {metric_column}")
+                if axes[j].get_xlim()[0] < axes[j].get_xlim()[1]:  # If lower values are on left
+                    #print(f"enter score for {metric_column} invert")
+                    axes[j].invert_xaxis()  # Invert so higher values are on left
+            # For distance metrics (like FID), lower is better, so have lower values to the left
+            if "fid" in metric_column.lower() or "distance" in metric_column.lower():
+                #print(f"enter fid for {metric_column}")
+                if axes[j].get_xlim()[0] > axes[j].get_xlim()[1]:  # If higher values are on left
+                    #print(f"enter fid for {metric_column} invert")
+                    axes[j].invert_xaxis()  # Invert so lower values are on left
+
+    fig.legend(loc='lower center', ncol=len(models), handles=handles, labels=labels)
+
+    output_plot = args.output_plot.replace('.png', f'_{metric_name}.png')
+    plt.savefig(output_plot)
+    plt.show()
+    print(f"\n{title_suffix} plot saved to {output_plot}")
+
+
 
         
 
@@ -274,24 +421,84 @@ if __name__ == '__main__':
     
 
     args = parser.parse_args()
+    
+    
+    num_imgs = 100
 
-    # if we want to compare sd and flux, we merge wmch_16 and wmch_4
-    args.dataset_identifier = ['num_10_fpr_0.01_cfg_3.0_wmch_16', 'num_10_fpr_0.01_cfg_3.0_wmch_4'] 
+    # if we want to compare sd and flux, we merge over wmch_16 and wmch_4
+    args.dataset_identifier = [f'num_{num_imgs}_fpr_0.01_cfg_3.0_wmch_16', f'num_{num_imgs}_fpr_0.01_cfg_3.0_wmch_4'] 
     # if, for any reason later, we want to compare only one of them, we can change the dataset_identifier
 
-    # extra 
-    args.output_dir = os.path.join(args.output_dir, '_results')
+    # create the output directory
+    args.output_dir = os.path.join(args.output_dir, '_results', args.dataset_identifier[0])
     if not os.path.exists(args.output_dir):
         os.makedirs(args.output_dir)
 
-    # where the plot will be saved
+    # create the output paths
     args.output_plot = os.path.join(args.output_dir, args.dataset_identifier[0] + '_plot.png')
-
-    # where the merged csv will be saved
     args.output_csv = os.path.join(args.output_dir, args.dataset_identifier[0] + '_merged.csv')
 
-    # merge all csv matching the dataset_identifier in the input_dir into the output_csv
+    # merge all .csv files in the input_dir matching the dataset_identifiers into the output_csv
     merge_csv_for_dataset_identifier(args.input_dir, args.dataset_identifier, args.output_csv)
+    # after this call, args.output_csv will contain the merged csv file
+
+    
+    # load new merged results
+    results_df = pd.read_csv(args.output_csv)
 
     # plot the results
-    plot_per_attack(args)   
+    # againt their attack strength
+    plot_tpr_per_attack(args, results_df)
+
+    # and against other metrics
+    # Plot TPR vs CLIP similarity score 
+    xmin = results_df['clip_score_wm'].min()
+    xmax = results_df['clip_score_wm'].max()
+    plot_tpr_per_metric(
+        args, 
+        results_df, 
+        metric_name="clip_score", 
+        metric_column="clip_score_wm",
+        title_suffix="CLIP similarity score",
+        xlabel="CLIP score (↑)",
+        xlim=[xmin, xmax]
+    )
+    
+    # Plot TPR vs Diff score
+    xmin = results_df['wm_diff'].min()
+    xmax = results_df['wm_diff'].max()
+    plot_tpr_per_metric(
+        args, 
+        results_df, 
+        metric_name="wm_diff", 
+        metric_column="wm_diff",
+        title_suffix="Diff",
+        xlabel="Diff (↓)",
+        xlim=[xmin, xmax]
+    )
+    
+    # Plot TPR vs FID score of WM vs COCO
+    xmin = results_df['fid_wm_coco'].min()
+    xmax = results_df['fid_wm_coco'].max()
+    plot_tpr_per_metric(
+        args, 
+        results_df, 
+        metric_name="fid_coco", 
+        metric_column="fid_wm_coco",
+        title_suffix="FID (WM vs COCO)",
+        xlabel="FID (↓)",
+        xlim=[xmin, xmax]
+    )
+    
+    # Plot TPR vs FID score of WM vs NOWM
+    xmin = results_df['fid_wm_nowm'].min()
+    xmax = results_df['fid_wm_nowm'].max()
+    plot_tpr_per_metric(
+        args, 
+        results_df, 
+        metric_name="fid_wm_nowm", 
+        metric_column="fid_wm_nowm",
+        title_suffix="FID (WM vs NOWM)",
+        xlabel="FID (↓)",
+        xlim=[xmin, xmax]
+    )
