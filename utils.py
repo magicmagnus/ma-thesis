@@ -5,6 +5,7 @@ import torch
 import json
 from PIL import Image, ImageFilter
 from torchvision import transforms
+from torchvision.transforms.functional import InterpolationMode
 import matplotlib.gridspec as gridspec
 import matplotlib.pyplot as plt
 
@@ -38,6 +39,7 @@ def transform_img(image, target_size=512):
         ]
     )
     image = tform(image)
+    print(f'[transform_img] image min/max: {image.min().item()}/{image.max().item()}')
     return 2.0 * image - 1.0
 
 def load_prompts(args):
@@ -103,8 +105,8 @@ def image_distortion(img1, img2, seed, args, i, print_args=True):
         save_name = 'example'
 
     if hasattr(args, 'r_degree'): # number between 0 and 360
-        img1 = transforms.RandomRotation((args.r_degree[i], args.r_degree[i]))(img1)
-        img2 = transforms.RandomRotation((args.r_degree[i], args.r_degree[i]))(img2)
+        img1 = transforms.RandomRotation((args.r_degree[i], args.r_degree[i]), interpolation=InterpolationMode.BICUBIC)(img1)
+        img2 = transforms.RandomRotation((args.r_degree[i], args.r_degree[i]), interpolation=InterpolationMode.BICUBIC)(img2)
         if print_args: 
             #print2file(args.log_file, f"Rotating images by {args.r_degree[i]} degrees")
             save_name += f"_rot{args.r_degree[i]}"
@@ -120,11 +122,13 @@ def image_distortion(img1, img2, seed, args, i, print_args=True):
             save_name += f"_jpeg{args.jpeg_ratio[i]}"
 
     if hasattr(args, 'crop_scale') and hasattr(args, 'crop_ratio'): # scale between 0 and 1, ratio between 0 and 1
+        scale = (args.crop_scale[i], args.crop_scale[i]) # e.g. exact 50% amount of the area
+        ratio = (1 - args.crop_ratio[i], 1 + args.crop_ratio[i])  # e.g. (0.5, 1.5)
+        
         seed_everything(seed)
-        ratio = (args.crop_ratio[i], (1+(1-args.crop_ratio[i])))	
-        img1 = transforms.RandomResizedCrop(img1.size, scale=(args.crop_scale[i], args.crop_scale[i]), ratio=ratio)(img1)
+        img1 = transforms.RandomResizedCrop(img1.size, scale=scale, ratio=ratio, interpolation=InterpolationMode.BICUBIC)(img1)
         seed_everything(seed)
-        img2 = transforms.RandomResizedCrop(img2.size, scale=(args.crop_scale[i], args.crop_scale[i]), ratio=ratio)(img2)
+        img2 = transforms.RandomResizedCrop(img2.size, scale=scale, ratio=ratio, interpolation=InterpolationMode.BICUBIC)(img2)
         if print_args: 
             #print2file(args.log_file, f"Cropping images with scale {args.crop_scale[i]} and ratio {args.crop_ratio[i]}")
             save_name += f"_crop{args.crop_scale[i]}_{args.crop_ratio[i]}"
