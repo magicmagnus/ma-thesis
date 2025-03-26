@@ -144,9 +144,9 @@ def image_distortion(img1, img2, seed, args, i, print_args=True):
         seed_everything(seed)
         img_shape = np.array(img1).shape
         g_noise = np.random.normal(0, args.gaussian_std[i], img_shape) * 255
-        g_noise = g_noise.astype(np.uint8)
-        img1 = Image.fromarray(np.clip(np.array(img1) + g_noise, 0, 255))
-        img2 = Image.fromarray(np.clip(np.array(img2) + g_noise, 0, 255))
+        #g_noise = g_noise.astype(np.uint8)
+        img1 = Image.fromarray(np.clip(np.array(img1) + g_noise, 0, 255).astype(np.uint8))
+        img2 = Image.fromarray(np.clip(np.array(img2) + g_noise, 0, 255).astype(np.uint8))
         if print_args: 
             #print2file(args.log_file, f"Adding Gaussian noise with standard deviation {args.gaussian_std[i]}")
             save_name += f"_noise{args.gaussian_std[i]}"
