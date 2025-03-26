@@ -4,5 +4,5 @@
 
   "run_name": "blur",
 
-  "gaussian_blur_r": [12, 10, 8, 6, 4]
+  "gaussian_blur_r": [1, 2, 3, 4, 5]
 }

@@ -4,5 +4,5 @@
 
   "run_name": "jpeg",
 
-  "jpeg_ratio": [5, 10, 15, 20, 25]
+  "jpeg_ratio": [90, 70, 50, 30, 10]
 }

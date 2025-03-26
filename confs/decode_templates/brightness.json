@@ -4,5 +4,5 @@
 
   "run_name": "brightness",
 
-  "brightness_factor": [12, 10, 8, 6, 4]
+  "brightness_factor": [1.2, 1.4, 1.6, 1.8, 2]
 }

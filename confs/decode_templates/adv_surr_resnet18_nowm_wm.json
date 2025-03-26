@@ -4,7 +4,7 @@
 
   "run_name": "adv_surr_resnet18_nowm_wm",
 
-  "adv_surr_resnet18": [40, 30, 20, 10],
+  "adv_surr_resnet18": [0, 1, 2, 5, 10],
   "adv_surr_model": "ResNet18",
   "adv_surr_method": "nowm_wm",
   "adv_surr_model_path": ""

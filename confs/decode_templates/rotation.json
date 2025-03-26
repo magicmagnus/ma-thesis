@@ -4,5 +4,5 @@
 
   "run_name": "rotation",
 
-  "r_degree": [90, 70, 45, 15, 2]
+  "r_degree": [1, 2, 3, 4, 5]
 }
