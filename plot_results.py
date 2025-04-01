@@ -7,79 +7,93 @@ from utils import setup_gridspec_figure
 
 # dict for saving names of axes/values
 attack_name_mapping = {
-    'crop_scale': {
-        'name': 'Crop&Scale',
-        'x_axis': 'Crop ratio and scale ratio',
-        'order': 'low-to-high'
-    },
-    'jpeg_ratio': {
-        'name': 'JPEG',
-        'x_axis': 'Quality factor', 
-        'order': 'low-to-high'
-    },
     'gaussian_std': {
-        'name': 'Noise',
+        'name': 'Noise (Gaussian std)',
         'x_axis': 'Standard deviation',
-        'order': 'high-to-low'
-    },
-    'r_degree': {
-        'name': 'Rotate',
-        'x_axis': 'Angle',
-        'order': 'high-to-low'
-    },
-    'gaussian_blur_r': {
-        'name': 'Blur',
-        'x_axis': 'Radius',
-        'order': 'high-to-low'
+        'order': 'high-to-low',
+        'cast_to_int': False
     },
     'brightness_factor': {
-        'name': 'Brightness',
+        'name': 'Brightness (factor)',
         'x_axis': 'Factor',
-        'order': 'high-to-low'
+        'order': 'high-to-low',
+        'cast_to_int': False
+    },
+    'crop_scale': {
+        'name': 'Crop&Scale (ratio)',
+        'x_axis': 'Crop ratio and scale ratio',
+        'order': 'low-to-high',
+        'cast_to_int': False
+    },
+    'jpeg_ratio': {
+        'name': 'JPEG (quality factor)',
+        'x_axis': 'Quality factor', 
+        'order': 'low-to-high',
+        'cast_to_int': True
+    },
+    'r_degree': {
+        'name': 'Rotation (degrees)',
+        'x_axis': 'Angle',
+        'order': 'high-to-low',
+        'cast_to_int': True
+    },
+    'gaussian_blur_r': {
+        'name': 'Blur (radius)',
+        'x_axis': 'Radius',
+        'order': 'high-to-low',
+        'cast_to_int': True
     },
     'adv_surr_resnet18': {
-        'name': 'Adv. Surrogate RN18',
+        'name': 'Adv. Surrogate RN18 (eps)',
         'x_axis': 'eps = x/255',
-        'order': 'high-to-low'
+        'order': 'high-to-low',
+        'cast_to_int': True
     },
     'adv_surr_resnet50': {
-        'name': 'Adv. Surrogate RN50',
+        'name': 'Adv. Surrogate RN50 (eps)',
         'x_axis': 'eps = x/255',
-        'order': 'high-to-low'
+        'order': 'high-to-low',
+        'cast_to_int': True
     },
     'adv_embed_klvae8': {	
-        'name': 'Adv. Embed KLVAE8',
+        'name': 'Adv. Embed KLVAE8 (eps)',
         'x_axis': 'eps = x/255',
-        'order': 'high-to-low'
+        'order': 'high-to-low',
+        'cast_to_int': True
     },
     'adv_embed_klvae16': {
-        'name': 'Adv. Embed KLVAE16',
+        'name': 'Adv. Embed KLVAE16 (eps)',
         'x_axis': 'eps = x/255',
-        'order': 'high-to-low'
+        'order': 'high-to-low',
+        'cast_to_int': True
     },
     'adv_embed_resnet18': {
-        'name': 'Adv. Embed RN18',
+        'name': 'Adv. Embed RN18 (eps)',
         'x_axis': 'eps = x/255',
-        'order': 'high-to-low'
+        'order': 'high-to-low',
+        'cast_to_int': True
     },
     'adv_embed_resnet50': {
-        'name': 'Adv. Embed RN50',
+        'name': 'Adv. Embed RN50 (eps)',
         'x_axis': 'eps = x/255',
-        'order': 'high-to-low'
+        'order': 'high-to-low',
+        'cast_to_int': True
     },
     'adv_embed_resnet101': {
-        'name': 'Adv. Embed RN101',
+        'name': 'Adv. Embed RN101 (eps)',
         'x_axis': 'eps = x/255',
-        'order': 'high-to-low'
+        'order': 'high-to-low',
+        'cast_to_int': True
     },
     'adv_embed_sdxlvae': {
-        'name': 'Adv. Embed SDXLVAE',
+        'name': 'Adv. Embed SDXLVAE (eps)',
         'x_axis': 'eps = x/255',
-        'order': 'high-to-low'
+        'order': 'high-to-low',
+        'cast_to_int': True
     },
     'no_attack': {
         'name': 'No Attack',
-        'x_axis': 'Attack strength',
+        'x_axis': 'Attack strength (eps)',
         'order': 'low-to-high'
     }
 }
@@ -139,7 +153,7 @@ def merge_csv_for_dataset_identifier(experiments_dir, dataset_identifiers, outpu
     combined_df.to_csv(output_file, index=False)
     print(f'Saved merged CSV to {output_file}')
 
-def order_attack_strengths(order, attack_strengths, attack_results, ci_lower, ci_upper):
+def order_attack_strengths(order, attack_strengths, attack_results, ci_lower, ci_upper, cast_to_int=False):
     """Orders attack strengths based on difficulty"""
     # Convert series to numpy for easier manipulation
     strengths = attack_strengths.values
@@ -150,7 +164,11 @@ def order_attack_strengths(order, attack_strengths, attack_results, ci_lower, ci
     # print dtypes of strengths and results
    
     # elements in strengths are strings, convert to float
-    strengths = strengths.astype(float)
+    strengths = strengths.astype(float) 
+
+    if cast_to_int:
+        strengths = strengths.astype(int)
+
     
     if order == 'high-to-low':
         # Keep original order for attacks where lower values = easier
@@ -184,7 +202,7 @@ def plot_tpr_per_attack(args,results_df):
     fs = 10
     fs_title = 14
     y_adj = 0.95
-    title_height_ratio = 0.8
+    title_height_ratio = 0.65
     title = f'Performance of watermarking methods under different attacks\n for experiments in \n{args.dataset_identifier}'
 
     fig, gs, title_axes = setup_gridspec_figure(
@@ -196,7 +214,7 @@ def plot_tpr_per_attack(args,results_df):
 
     # set the titles for each row, as the attack names
     for i, ax in enumerate(title_axes):
-        ax.text(0.5, 0.25, attack_name_mapping[attack_names[i]]['name'], fontsize=fs_title, fontweight="bold", ha="center", va="center")
+        ax.text(0.5, 0.4, attack_name_mapping[attack_names[i]]['name'], fontsize=fs_title, fontweight="bold", ha="center", va="center")
                       
     handles, labels = [], []
 
@@ -233,7 +251,8 @@ def plot_tpr_per_attack(args,results_df):
                         model_df['attack_strength'], 
                         model_df['tpr_empirical'],
                         model_df['tpr_ci_lower_percentile'],
-                        model_df['tpr_ci_upper_percentile']
+                        model_df['tpr_ci_upper_percentile'],
+                        attack_name_mapping[attack_name]['cast_to_int'],
                     )
                 
                 label = diff_model_markers[model]['name']
@@ -250,6 +269,9 @@ def plot_tpr_per_attack(args,results_df):
                     print(f'\t\tplotting CI for {attack_name}, {wm_method}, {model}')
                     print(f'\t\tci_lower: {ci_lower}')
                     axes[j].fill_between(strengths, ci_lower, ci_upper, color=diff_model_markers[model]['color'], alpha=0.2)
+                    if attack_name == 'no_attack':
+                        axes[j].plot(strengths, ci_lower, color=diff_model_markers[model]['color'], alpha=0.2, marker='x', linestyle='--')
+                        axes[j].plot(strengths, ci_upper, color=diff_model_markers[model]['color'], alpha=0.2, marker='x', linestyle='--')
 
                             
                 if label not in labels:
@@ -266,7 +288,7 @@ def plot_tpr_per_attack(args,results_df):
                 
             axes[j].grid(True)
             axes[j].set_title(wm_methods_names[wm_method])
-            axes[j].set_xlabel(attack_name_mapping[attack_name]['x_axis'])
+            #axes[j].set_xlabel(attack_name_mapping[attack_name]['x_axis'])
             axes[j].set_ylim([-0.1, 1.1])
 
     
@@ -400,7 +422,7 @@ def plot_tpr_per_metric(args, results_df, metric_name, metric_column, title_suff
 
     fig.legend(loc='lower center', ncol=len(models), handles=handles, labels=labels)
 
-    output_plot = args.output_plot.replace('.png', f'_{metric_name}.png')
+    output_plot = args.output_plot.replace('.pdf', f'_{metric_name}.pdf')
     plt.savefig(output_plot)
     plt.show()
     print(f"\n{title_suffix} plot saved to {output_plot}")
@@ -423,7 +445,7 @@ if __name__ == '__main__':
     args = parser.parse_args()
     
     
-    num_imgs = 100
+    num_imgs = 101
 
     # if we want to compare sd and flux, we merge over wmch_16 and wmch_4
     args.dataset_identifier = [f'num_{num_imgs}_fpr_0.01_cfg_3.0_wmch_16', f'num_{num_imgs}_fpr_0.01_cfg_3.0_wmch_4'] 
@@ -435,7 +457,7 @@ if __name__ == '__main__':
         os.makedirs(args.output_dir)
 
     # create the output paths
-    args.output_plot = os.path.join(args.output_dir, args.dataset_identifier[0] + '_plot.png')
+    args.output_plot = os.path.join(args.output_dir, args.dataset_identifier[0] + '_plot.pdf')
     args.output_csv = os.path.join(args.output_dir, args.dataset_identifier[0] + '_merged.csv')
 
     # merge all .csv files in the input_dir matching the dataset_identifiers into the output_csv

@@ -3,12 +3,11 @@
   "latent_channels_wm": 4,
 
   "dataset_id": "mjprompts",
-  "num_images": 100,
+  "num_images": 101,
   "inf_steps": 50,
   "fpr": 0.01,
   "guidance_scale": 3.0,
   "test_inf_steps": 50,
-
   
   "calc_FID": true,
   "calc_CLIP": true,

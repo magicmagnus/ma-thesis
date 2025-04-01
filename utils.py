@@ -50,7 +50,7 @@ def load_prompts(args):
     elif args.dataset_id == 'sdprompts':
         all_prompts = [sample['Prompt'] for sample in load_dataset('Gustavosta/Stable-Diffusion-Prompts')['test']]
     elif args.dataset_id == 'mjprompts':
-        all_prompts = [sample['caption'] for sample in load_dataset('bghira/mj-v52-redux')['Collection_3']]
+        all_prompts = [sample['caption'] for sample in load_dataset('bghira/mj-v52-redux')['Collection_4']]
     else:
         print2file(args.log_file, 'Invalid dataset_id')
         return
@@ -360,8 +360,8 @@ def create_and_save_decode_confs(args):
         # 2. add line for that attack type to submit_decode_all and submit_attack_all
         if not "default" in template_name:
             # we only need to attack the non-default ones, the default is not a real attack
-            submit_attack_all += f"condor_submit_bid 50 /fast/mkaut/ma-thesis/{output_jobs_dir}/attack/{template_name}.sub\n"
-        submit_decode_all += f"condor_submit_bid 50 /fast/mkaut/ma-thesis/{output_jobs_dir}/decode/{template_name}.sub\n"
+            submit_attack_all += f"condor_submit_bid 20 /fast/mkaut/ma-thesis/{output_jobs_dir}/attack/{template_name}.sub\n"
+        submit_decode_all += f"condor_submit_bid 20 /fast/mkaut/ma-thesis/{output_jobs_dir}/decode/{template_name}.sub\n"
 
     # save the .sh submit files
     with open(os.path.join(output_jobs_dir, "submit_decode_all.sh"), 'w') as f:
