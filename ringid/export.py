@@ -90,6 +90,18 @@ class RingIDWatermark():
                 torch_dtype=torch.bfloat16,
                 cache_dir=self.hf_cache_dir,
             ).to(self.device)
+        elif args.model_id == 'flux_s':
+            print("\nUsing FLUX schnell model")
+            scheduler = FlowMatchEulerDiscreteScheduler.from_pretrained(
+                'black-forest-labs/FLUX.1-schnell',
+                subfolder='scheduler'
+            )
+            self.pipe = InversableFluxPipeline.from_pretrained(
+                'black-forest-labs/FLUX.1-schnell',
+                scheduler=scheduler,
+                torch_dtype=torch.bfloat16,
+                cache_dir=self.hf_cache_dir,
+            ).to(self.device)
         self.pipe.set_progress_bar_config(disable=True)
 
         # for the potential case of having the watermark duplicated over the 16 channels
@@ -245,6 +257,7 @@ class RingIDWatermark():
         seed_everything(seed)
         if isinstance(self.pipe, InversableFluxPipeline):
             ## (1, self.latent_channels, 64, 64) --> (1, 1024, 64)
+            #print(f'\n[generate_img] init_latents min/max before reshape_latents_SD_to_flux: {init_latents.min().item()}/{init_latents.max().item()}')
             init_latents = self.pipe.reshape_latents_SD_to_flux(wm_latents=init_latents,
                                                                 batch_size=num_images_per_prompt,
                                                                 num_channels_latents=16,
@@ -254,6 +267,7 @@ class RingIDWatermark():
                                                                 device=self.device,
                                                                 generator=None,)
         
+        #print(f'\n[generate_img] init_latents min/max before pipe call: {init_latents.min().item()}/{init_latents.max().item()}')
         outputs = self.pipe(
             prompt,
             num_images_per_prompt=num_images_per_prompt,
@@ -280,6 +294,7 @@ class RingIDWatermark():
         #same from here on
         dtype = self.pipe.text_encoder.dtype
         img = transform_img(img).unsqueeze(0).to(dtype).to(self.device) 
+        #print(f'\n[get_inversed_latents] img min/max after transform: {img.min().item()}/{img.max().item()}') # -1, 1
 
         img_latents = self.pipe.get_image_latents(img, 
                                                   sample=False, 
@@ -288,11 +303,14 @@ class RingIDWatermark():
                                                   height=512, # full height and width before
                                                   width=512,)
 
+        #print(f'\n[get_inversed_latents] img_latents min/max after get_image_latents: {img_latents.min().item()}/{img_latents.max().item()}') # -4, 4
         reversed_latents = self.pipe.forward_diffusion(latents=img_latents, 
                                                        prompt=prompt, 
                                                        guidance_scale=1,
                                                        num_inference_steps=self.test_inf_steps,
                                                        device=self.device,)
+        
+        #print(f'\n[get_inversed_latents] reversed_latents min/max after forward_diffusion: {reversed_latents.min().item()}/{reversed_latents.max().item()}') # -3,5 , 3,5
 
         if isinstance(self.pipe, InversableFluxPipeline):
             reversed_latents = self.pipe._unpack_latents(latents=reversed_latents, 
@@ -302,6 +320,7 @@ class RingIDWatermark():
             
             reversed_latents = reversed_latents.to(torch.float32) # from flux, always have 16 channels
             
+        #print(f'\n[get_inversed_latents] reversed_latents min/max after _unpack_latents: {reversed_latents.min().item()}/{reversed_latents.max().item()}')
         return reversed_latents, true_latents
     
     

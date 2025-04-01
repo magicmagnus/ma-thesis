@@ -139,6 +139,7 @@ class InversableFluxPipeline(ModifiedFluxPipeline):
         # t0_loop = time.time()
         # model_time = 0
         # stepping_time = 0
+        #print(f'\n\t[fowardcall] latents min/max before denoising loop: {latents.min().item()}/{latents.max().item()}')
         for i, t in enumerate(timesteps):
             #t0 = time.time()
             # Expand latents for guidance
@@ -221,5 +222,7 @@ class InversableFluxPipeline(ModifiedFluxPipeline):
         # print(f"diffusion loop {t1_loop - t0_loop} seconds") # 10.841530323028564 seconds
         # print(f"model time {model_time} seconds") # 8.0813729763031 seconds
         # print(f"stepping time {stepping_time} seconds")
+
+        #print(f'\n\t[fowardcall] latents min/max after loop: {latents.min().item()}/{latents.max().item()}')
 
         return latents

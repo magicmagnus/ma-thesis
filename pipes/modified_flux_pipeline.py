@@ -51,7 +51,7 @@ class ModifiedFluxPipeline(FluxPipeline):
         return image
     
     
-    # prepare for direction image -> latent_noise
+    # prepare for direction image -> latent_representation 
     @torch.inference_mode()
     def get_image_latents(self, 
                           image, 
@@ -68,6 +68,8 @@ class ModifiedFluxPipeline(FluxPipeline):
         else:
             sample_mode = "sample"
 
+        
+
         # first encode the image to latent space of the VAE
         if isinstance(generator, list):
             image_latents = [
@@ -76,10 +78,13 @@ class ModifiedFluxPipeline(FluxPipeline):
             ]
             image_latents = torch.cat(image_latents, dim=0)
         else:
+            #print(f'\n\t[get_image_latents] image min/max before VAE encode: {image.min().item()}/{image.max().item()}') # -1.0/1.0
             image_latents = retrieve_latents(self.vae.encode(image), generator=generator, sample_mode=sample_mode)
+            #print(f'\n\t[get_image_latents] image_latents min/max after VAE encode: {image_latents.min().item()}/{image_latents.max().item()}') # -11 /  11
 
         image_latents = (image_latents - self.vae.config.shift_factor) * self.vae.config.scaling_factor  # (1, 16, 64, 64)
 
+        #print(f'\n\t[get_image_latents] image_latents min/max after scaling: {image_latents.min().item()}/{image_latents.max().item()}')
         # then transform the latents to the shape of the Flux model (1, 1024, 64)
         batch_size = image_latents.shape[0]
         num_channels_latents = image_latents.shape[1]

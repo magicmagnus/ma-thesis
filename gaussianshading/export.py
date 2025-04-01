@@ -119,6 +119,18 @@ class GSWatermark:
                 torch_dtype=torch.bfloat16,
                 cache_dir=self.hf_cache_dir,
             ).to(self.device)
+        elif args.model_id == 'flux_s':
+            print("\nUsing FLUX schnell model")
+            scheduler = FlowMatchEulerDiscreteScheduler.from_pretrained(
+                'black-forest-labs/FLUX.1-schnell',
+                subfolder='scheduler'
+            )
+            self.pipe = InversableFluxPipeline.from_pretrained(
+                'black-forest-labs/FLUX.1-schnell',
+                scheduler=scheduler,
+                torch_dtype=torch.bfloat16,
+                cache_dir=self.hf_cache_dir,
+            ).to(self.device)
         self.pipe.set_progress_bar_config(disable=True)
 
         # generate single watermark pattern for visualization

@@ -107,12 +107,15 @@ class InversableStableDiffusionPipeline(ModifiedStableDiffusionPipeline):
                           batch_size, 
                           generator=None, 
                           **kwargs):
+        #print(f'\n\t[get_image_latents] image min/max before VAE encode: {image.min().item()}/{image.max().item()}') # -1.0/1.0
         encoding_dist = self.vae.encode(image).latent_dist
         if sample:
             encoding = encoding_dist.sample(generator=generator)
         else:
             encoding = encoding_dist.mode()
-        latents = encoding * 0.18215
+        #print(f'\n\t[get_image_latents] image_latents min/max after VAE encode: {encoding.min().item()}/{encoding.max().item()}') # -13 / 13
+        latents = encoding * 0.18215 # self.vae.config.scaling_factor  = 0.18215
+        #print(f'\n\t[get_image_latents] image_latents min/max after scaling: {latents.min().item()}/{latents.max().item()}') # -2.4 / 2.4
         return latents
 
 
@@ -144,7 +147,10 @@ class InversableStableDiffusionPipeline(ModifiedStableDiffusionPipeline):
         # It's more optimized to move all timesteps to correct device beforehand
         timesteps_tensor = self.scheduler.timesteps.to(self.device)
         # scale the initial noise by the standard deviation required by the scheduler
+        #print(f'\n\t[backward_diffusion] latents min/max before scaling: {latents.min().item()}/{latents.max().item()}')
+        #print(f'\n\t[backward_diffusion] scheduler.init_noise_sigma: {self.scheduler.init_noise_sigma}')
         latents = latents * self.scheduler.init_noise_sigma
+        #print(f'\n\t[backward_diffusion] latents min/max after scaling (input to unet): {latents.min().item()}/{latents.max().item()}')
 
         # encode the prompt
         if prompt is not None:
@@ -203,6 +209,9 @@ class InversableStableDiffusionPipeline(ModifiedStableDiffusionPipeline):
                 alpha_tm1=alpha_prod_t_prev,
                 eps_xt=noise_pred,
             )
+
+        #print(f'\n\t[backward_diffusion] latents min/max after denoising loop: {latents.min().item()}/{latents.max().item()}')
+        
         return latents
 
     
