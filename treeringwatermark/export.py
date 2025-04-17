@@ -23,14 +23,13 @@ from diffusers import DPMSolverMultistepScheduler
 class TRWatermark():
     def __init__(self, 
                  args,
-                 hf_cache_dir='/home/mkaut/.cache/huggingface/hub'
+                 pipe,
     ):
         self.model_id = args.model_id
         self.inf_steps = args.inf_steps
         self.test_inf_steps = args.test_inf_steps
         self.fpr = args.fpr
         self.device = 'cuda' if torch.cuda.is_available() else 'cpu'
-        self.hf_cache_dir = hf_cache_dir
         self.method = 'tr'
         self.num_images = args.num_images
         self.guidance_scale = args.guidance_scale
@@ -75,43 +74,7 @@ class TRWatermark():
             print(f'Loaded TR keys from file {key_path}')
         
 
-        # which Model to use
-        if args.model_id == 'sd':
-            print("\nUsing SD model")
-            scheduler = DPMSolverMultistepScheduler.from_pretrained(
-                'stabilityai/stable-diffusion-2-1-base', 
-                subfolder='scheduler')
-            self.pipe = InversableStableDiffusionPipeline.from_pretrained(
-                'stabilityai/stable-diffusion-2-1-base',
-                scheduler=scheduler,
-                torch_dtype=torch.float32,
-                cache_dir=self.hf_cache_dir,
-                ).to(self.device)
-        elif args.model_id == 'flux':
-            print("\nUsing FLUX model")
-            scheduler = FlowMatchEulerDiscreteScheduler.from_pretrained(
-                'black-forest-labs/FLUX.1-dev',
-                subfolder='scheduler'
-            )
-            self.pipe = InversableFluxPipeline.from_pretrained(
-                'black-forest-labs/FLUX.1-dev',
-                scheduler=scheduler,
-                torch_dtype=torch.bfloat16,
-                cache_dir=self.hf_cache_dir,
-            ).to(self.device)
-        elif args.model_id == 'flux_s':
-            print("\nUsing FLUX schnell model")
-            scheduler = FlowMatchEulerDiscreteScheduler.from_pretrained(
-                'black-forest-labs/FLUX.1-schnell',
-                subfolder='scheduler'
-            )
-            self.pipe = InversableFluxPipeline.from_pretrained(
-                'black-forest-labs/FLUX.1-schnell',
-                scheduler=scheduler,
-                torch_dtype=torch.bfloat16,
-                cache_dir=self.hf_cache_dir,
-            ).to(self.device)
-        self.pipe.set_progress_bar_config(disable=True)
+        self.pipe = pipe
 
         self.visualize_watermarking_pattern()
 

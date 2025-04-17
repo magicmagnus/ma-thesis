@@ -2,12 +2,12 @@
   "model_id": "flux_s",
   "latent_channels_wm": 16,
   
-  "dataset_id": "mjprompts",
-  "num_images": 101,
-  "inf_steps": 50,
+  "dataset_id": "coco",
+  "num_images": 50,
+  "inf_steps": 4,
   "fpr": 0.01,
   "guidance_scale": 3.0,
-  "test_inf_steps": 50,
+  "test_inf_steps": 4,
   
   "calc_FID": true,
   "calc_CLIP": true,
@@ -23,5 +23,7 @@
   "w_measurement": "l1_complex",
   "w_pattern_const": 0,
 
-  "run_name": "tr_default"
+  "run_name": "tr_default",
+  
+  "exp_name": "grids_debug2"
 }

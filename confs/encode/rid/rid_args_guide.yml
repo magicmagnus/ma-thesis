@@ -28,6 +28,13 @@ time_shift: 1                 # 1 == from "concentric cirlces" to "cross-like" p
 time_shift_factor: 0.8        # to suppress the pattern in the middle a bit more
 fix_gt: 1                     # 1 == deletes the ring pattern in the imaginary part of the watermark pattern
 
+clone_patterns: false,        # true == use the same pattern for all channels
+                              # false == use different patterns for each channel
+                              
+shuffle_patterns: true,       # only used if clone_patterns is false
+                              # true == shuffle the patterns before choosing them
+                              # false == use the patterns in the order they are given, results in very similar patterns, cause of the power of 2 
+
 channel_min: 0                # 0 == Returns the average difference across all channels
                               # 1 == Returns the minimum difference found among all channels
 

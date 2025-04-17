@@ -22,7 +22,7 @@ from diffusers import DPMSolverMultistepScheduler
 class GSWatermark:
     def __init__(self, 
                  args,
-                 hf_cache_dir='/home/mkaut/.cache/huggingface/hub'
+                 pipe,
     ):
         
         self.model_id = args.model_id
@@ -30,7 +30,6 @@ class GSWatermark:
         self.test_inf_steps = args.test_inf_steps
         self.fpr = args.fpr
         self.device = 'cuda' if torch.cuda.is_available() else 'cpu'
-        self.hf_cache_dir = hf_cache_dir
         self.method = 'gs'
         self.num_images = args.num_images
         self.guidance_scale = args.guidance_scale
@@ -95,43 +94,7 @@ class GSWatermark:
                 self.gs.key = key
                 print(f"\nLoaded GaussianShading watermark from file {key_path}")
 
-        # which Model to use
-        if args.model_id == 'sd':
-            print("\nUsing SD model")
-            scheduler = DPMSolverMultistepScheduler.from_pretrained(
-                'stabilityai/stable-diffusion-2-1-base', 
-                subfolder='scheduler')
-            self.pipe = InversableStableDiffusionPipeline.from_pretrained(
-                'stabilityai/stable-diffusion-2-1-base',
-                scheduler=scheduler,
-                torch_dtype=torch.float32,
-                cache_dir=self.hf_cache_dir,
-                ).to(self.device)
-        elif args.model_id == 'flux':
-            print("\nUsing FLUX model")
-            scheduler = FlowMatchEulerDiscreteScheduler.from_pretrained(
-                'black-forest-labs/FLUX.1-dev',
-                subfolder='scheduler'
-            )
-            self.pipe = InversableFluxPipeline.from_pretrained(
-                'black-forest-labs/FLUX.1-dev',
-                scheduler=scheduler,
-                torch_dtype=torch.bfloat16,
-                cache_dir=self.hf_cache_dir,
-            ).to(self.device)
-        elif args.model_id == 'flux_s':
-            print("\nUsing FLUX schnell model")
-            scheduler = FlowMatchEulerDiscreteScheduler.from_pretrained(
-                'black-forest-labs/FLUX.1-schnell',
-                subfolder='scheduler'
-            )
-            self.pipe = InversableFluxPipeline.from_pretrained(
-                'black-forest-labs/FLUX.1-schnell',
-                scheduler=scheduler,
-                torch_dtype=torch.bfloat16,
-                cache_dir=self.hf_cache_dir,
-            ).to(self.device)
-        self.pipe.set_progress_bar_config(disable=True)
+        self.pipe = pipe
 
         # generate single watermark pattern for visualization
         self.visualize_watermark_pattern()
@@ -140,6 +103,7 @@ class GSWatermark:
 
         # has latent_channels_wm channels, not neccessarily the full latent_channels
         init_latents = self.gs.truncSampling(self.watermark_m) 
+        # print(f"init_latents GS dtype: {init_latents.dtype}") # init_latents GS dtype: torch.float16
 
         title = 'Gaussian Shading Watermark pattern'
         save_path = f'{self.args.log_dir}/{self.method}_wm_latents.pdf'
@@ -226,10 +190,16 @@ class GSWatermark:
         latents = latents[:, :self.latent_channels_wm, ...] # only check the wm channels
         return self.gs.eval_watermark(latents, count=count)
     
-    def viz_reversed_latents(self, true_latents_nowm, reversed_latents_nowm, true_latents_wm, reversed_latents_wm, attack_name, attack_vals, strength):
+    def viz_reversed_latents(self, true_latents_nowm, reversed_latents_nowm, true_latents_wm, reversed_latents_wm, attack_name, attack_vals, strength, gs_watermark_channel=None):
         
-        metric_wm = self.eval_watermark(reversed_latents_wm, count=False)
-        metric_nowm = self.eval_watermark(reversed_latents_nowm, count=False)
+        if gs_watermark_channel is None:
+            print(f"gs_watermark_channel is None, normal watermark evaluation")
+            metric_wm = self.eval_watermark(reversed_latents_wm, count=False)
+            metric_nowm = self.eval_watermark(reversed_latents_nowm, count=False)
+        else: 
+            print(f"eval wateramrk on channel {gs_watermark_channel}")
+            metric_wm = self.gs.eval_watermark(reversed_latents_wm[gs_watermark_channel], count=False)
+            metric_nowm = self.gs.eval_watermark(reversed_latents_nowm[gs_watermark_channel], count=False)
 
         diff_wm_wm = reversed_latents_wm - true_latents_wm # both again the same wm pattern
         diff_nowm_wm = reversed_latents_nowm - true_latents_wm

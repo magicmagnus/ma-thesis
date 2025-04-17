@@ -9,7 +9,7 @@ import numpy as np
 import matplotlib.pyplot as plt
 
 from utils import seed_everything, transform_img, plot_wm_pattern_fft, plot_wm_latents_fft, visualize_reversed_latents_fft
-from .utils import ring_mask, make_Fourier_ringid_pattern, fft, ifft
+from .utils import ring_mask, make_Fourier_ringid_pattern, fft, ifft, create_diverse_pattern_list
 
 
 # Add parent directory to path
@@ -25,13 +25,12 @@ from diffusers import DPMSolverMultistepScheduler
 class RingIDWatermark():
     def __init__(self, 
                  args,
-                 hf_cache_dir='/home/mkaut/.cache/huggingface/hub'
+                 pipe,
     ):
         self.model_id = args.model_id
         self.inf_steps = args.inf_steps
         self.test_inf_steps = args.test_inf_steps
         self.device = 'cuda' if torch.cuda.is_available() else 'cpu'
-        self.hf_cache_dir = hf_cache_dir
         self.method = 'rid'
         self.num_images = args.num_images
         self.guidance_scale = args.guidance_scale
@@ -47,10 +46,13 @@ class RingIDWatermark():
         self.WATERMARK_CHANNEL = sorted(self.HETER_WATERMARK_CHANNEL + self.RING_WATERMARK_CHANNEL)
 
         self.watermark_channel = self.WATERMARK_CHANNEL  # Set self.watermark_channel
+
+        self.clone_patterns = args.clone_patterns
+        self.shuffle_patterns = args.shuffle_patterns
         
 
     	# Load or generate watermark patterns
-        key_id = f'{self.method}_seed_{args.watermark_seed}_patidx_{args.pattern_index}_timeshift_{args.time_shift}_tsfactor_{args.time_shift_factor}_fixgt_{args.fix_gt}_channels_{self.latent_channels_wm}_assignedkeys_{args.assigned_keys}'
+        key_id = f'{self.method}_seed_{args.watermark_seed}_patidx_{args.pattern_index}_timeshift_{args.time_shift}_tsfactor_{args.time_shift_factor}_fixgt_{args.fix_gt}_channels_{self.latent_channels_wm}_assignedkeys_{args.assigned_keys}_clone_{self.clone_patterns}_shuffle_{self.shuffle_patterns}'
         key_path = f'keys/{key_id}.pkl'
 
         if not os.path.exists(key_path):
@@ -65,44 +67,7 @@ class RingIDWatermark():
                 self.Fourier_watermark_pattern_list, self.watermark_region_mask = pickle.load(f)
             print(f'\nLoaded RingID keys from file {key_path}')
 
-
-        # which Model to use
-        if args.model_id == 'sd':
-            print("\nUsing SD model")
-            scheduler = DPMSolverMultistepScheduler.from_pretrained(
-                'stabilityai/stable-diffusion-2-1-base', 
-                subfolder='scheduler')
-            self.pipe = InversableStableDiffusionPipeline.from_pretrained(
-                'stabilityai/stable-diffusion-2-1-base',
-                scheduler=scheduler,
-                torch_dtype=torch.float32,
-                cache_dir=self.hf_cache_dir,
-                ).to(self.device)
-        elif args.model_id == 'flux':
-            print("\nUsing FLUX model")
-            scheduler = FlowMatchEulerDiscreteScheduler.from_pretrained(
-                'black-forest-labs/FLUX.1-dev',
-                subfolder='scheduler'
-            )
-            self.pipe = InversableFluxPipeline.from_pretrained(
-                'black-forest-labs/FLUX.1-dev',
-                scheduler=scheduler,
-                torch_dtype=torch.bfloat16,
-                cache_dir=self.hf_cache_dir,
-            ).to(self.device)
-        elif args.model_id == 'flux_s':
-            print("\nUsing FLUX schnell model")
-            scheduler = FlowMatchEulerDiscreteScheduler.from_pretrained(
-                'black-forest-labs/FLUX.1-schnell',
-                subfolder='scheduler'
-            )
-            self.pipe = InversableFluxPipeline.from_pretrained(
-                'black-forest-labs/FLUX.1-schnell',
-                scheduler=scheduler,
-                torch_dtype=torch.bfloat16,
-                cache_dir=self.hf_cache_dir,
-            ).to(self.device)
-        self.pipe.set_progress_bar_config(disable=True)
+        self.pipe = pipe
 
         # for the potential case of having the watermark duplicated over the 16 channels
         watermark_channel = []
@@ -134,10 +99,12 @@ class RingIDWatermark():
                             save_path=save_path)
         
         # 2. inject watermark and plot the latents in the frequency domain
+        seed_everything(0) # to be same as first iteration in encode.py
         init_latents_np = np.random.randn(1, self.latent_channels, 64, 64)
         init_latents = torch.from_numpy(init_latents_np).to(torch.float32).to(self.device)
         
         init_latents_watermarked = self.inject_watermark(init_latents, self.args.pattern_index)
+        print(f"init_latents RID dtype: {init_latents_watermarked.dtype}")
         diff = init_latents_watermarked - init_latents # only for before/after visualization
 
         init_latents_fft = torch.fft.fftshift(torch.fft.fft2(init_latents), dim=(-1, -2))
@@ -222,8 +189,20 @@ class RingIDWatermark():
                 Fourier_watermark_pattern[:, self.RING_WATERMARK_CHANNEL, ...] = fft(torch.fft.fftshift(ifft(Fourier_watermark_pattern[:, self.RING_WATERMARK_CHANNEL, ...]), dim = (-1, -2)) * self.args.time_shift_factor)
                 # Fourier_watermark_pattern[:, self.RING_WATERMARK_CHANNEL, ...] = fft(torch.fft.fftshift(ifft(Fourier_watermark_pattern[:, self.RING_WATERMARK_CHANNEL, ...]), dim = (-1, -2)))
 
-        # repeat the pattern across all channels, 16 instead of 4
-        self.Fourier_watermark_pattern_list = [pattern.repeat(1, self.latent_channels // 4, 1, 1) for pattern in self.Fourier_watermark_pattern_list]
+        # extend the watermark pattern to the full number of channels	
+        num_repeats = self.latent_channels_wm // 4
+        if num_repeats > 1:
+            if self.clone_patterns:
+                # repeat the pattern across all channels, 16 or 12 or 8 instead of 4
+                self.Fourier_watermark_pattern_list = [pattern.repeat(1, num_repeats, 1, 1) for pattern in self.Fourier_watermark_pattern_list]
+            else: # 4 different patterns for each block of 4 channels
+                original_patterns = self.Fourier_watermark_pattern_list.copy()
+                if self.shuffle_patterns:
+                    random.shuffle(original_patterns)
+                
+                # draw different patterns for each block of 4 channels, instead of repeating the same pattern
+                self.Fourier_watermark_pattern_list = create_diverse_pattern_list(original_patterns, num_repeats)
+     
    
     ############################# ENCODING ########################################
     def inject_watermark(self, init_latents, pattern_index=0):

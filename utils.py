@@ -8,6 +8,14 @@ from torchvision import transforms
 from torchvision.transforms.functional import InterpolationMode
 import matplotlib.gridspec as gridspec
 import matplotlib.pyplot as plt
+import seaborn as sns
+
+ # flux
+from pipes.inverse_flux_pipeline import InversableFluxPipeline
+from diffusers.schedulers import FlowMatchEulerDiscreteScheduler
+# sd
+from pipes.inverse_stable_diffusion import InversableStableDiffusionPipeline
+from diffusers import DPMSolverMultistepScheduler
 
 from datasets import load_dataset
 
@@ -39,7 +47,7 @@ def transform_img(image, target_size=512):
         ]
     )
     image = tform(image)
-    print(f'[transform_img] image min/max: {image.min().item()}/{image.max().item()}')
+    # print(f'[transform_img] image min/max: {image.min().item()}/{image.max().item()}')
     return 2.0 * image - 1.0
 
 def load_prompts(args):
@@ -50,20 +58,62 @@ def load_prompts(args):
     elif args.dataset_id == 'sdprompts':
         all_prompts = [sample['Prompt'] for sample in load_dataset('Gustavosta/Stable-Diffusion-Prompts')['test']]
     elif args.dataset_id == 'mjprompts':
-        all_prompts = [sample['caption'] for sample in load_dataset('bghira/mj-v52-redux')['Collection_4']]
+        all_prompts = [sample['caption'] for sample in load_dataset('bghira/mj-v52-redux')['Collection_5']]
     else:
         print2file(args.log_file, 'Invalid dataset_id')
         return
     # sample the prompts
+    seed_everything(43) # should be 0 cause it gets set to 0 later in the loop
     prompts = random.sample(all_prompts, args.num_images)
+    seed_everything(0) # should be 0 cause it gets set to 0 later in the loop
     print2file(args.log_file,  '\nPrompts:')
     for i, prompt in enumerate(prompts):
         print2file(args.log_file, f'{i}: {prompt}')
 
     return prompts
 
+def get_pipe(args, device, HF_CACHE_DIR):
+    # which Model to use
+    if args.model_id == 'sd':
+        print("\nUsing SD model")
+        scheduler = DPMSolverMultistepScheduler.from_pretrained(
+            'stabilityai/stable-diffusion-2-1-base', 
+            subfolder='scheduler')
+        pipe = InversableStableDiffusionPipeline.from_pretrained(
+            'stabilityai/stable-diffusion-2-1-base',
+            scheduler=scheduler,
+            torch_dtype=torch.float32,
+            cache_dir=HF_CACHE_DIR,
+            ).to(device)
+    elif args.model_id == 'flux':
+        print("\nUsing FLUX model")
+        scheduler = FlowMatchEulerDiscreteScheduler.from_pretrained(
+            'black-forest-labs/FLUX.1-dev',
+            subfolder='scheduler'
+        )
+        pipe = InversableFluxPipeline.from_pretrained(
+            'black-forest-labs/FLUX.1-dev',
+            scheduler=scheduler,
+            torch_dtype=torch.bfloat16,
+            cache_dir=HF_CACHE_DIR,
+        ).to(device)
+    elif args.model_id == 'flux_s':
+        print("\nUsing FLUX schnell model")
+        scheduler = FlowMatchEulerDiscreteScheduler.from_pretrained(
+            'black-forest-labs/FLUX.1-schnell',
+            subfolder='scheduler'
+        )
+        pipe = InversableFluxPipeline.from_pretrained(
+            'black-forest-labs/FLUX.1-schnell',
+            scheduler=scheduler,
+            torch_dtype=torch.bfloat16,
+            cache_dir=HF_CACHE_DIR,
+        ).to(device)
+    pipe.set_progress_bar_config(disable=True)
+    return pipe
+
+
 def bootstrap_tpr(no_wm_metrics, wm_metrics, fpr_target, n_bootstraps=1000):
-    import numpy as np
     from sklearn import metrics
     from scipy.stats import norm
     
@@ -98,6 +148,70 @@ def bootstrap_tpr(no_wm_metrics, wm_metrics, fpr_target, n_bootstraps=1000):
     ci_lower_perc, ci_upper_perc = np.percentile(tpr_samples, [2.5, 97.5])
 
     return tpr_mean, tpr_std, (ci_lower, ci_upper), (ci_lower_perc, ci_upper_perc)
+
+def plot_heatmaps(args, fpr_grid, tpr_grid, title_suffix, xticks, yticks, levels=0.01, contour_label='FPR = 0.01'):
+    xlabel = 'RID Thresholds (higher = more likely WM)'
+    ylabel = 'GS Thresholds (higher = more likely WM)'
+
+    title_FPR = f'FPR Grid for {title_suffix}'
+    title_TPR = f'TPR Grid for {title_suffix}' 
+    contour_label = f'FPR={levels}'
+
+    # Create 2 subplots
+    fig, (ax1, ax2) = plt.subplots(1, 2, figsize=(16, 8))
+
+    # --- Use imshow for heatmaps ---
+    # Define extent for imshow: [left, right, bottom, top]
+    # Coordinates correspond to the *edges* of the pixels/cells
+    
+
+    # FPR plot using imshow
+    im1 = ax1.imshow(fpr_grid, cmap="viridis", vmin=0, vmax=1, aspect='auto', origin='lower')
+    fig.colorbar(im1, ax=ax1, label='False Positive Rate (↓)')
+    ax1.set_xlabel(xlabel)
+    ax1.set_ylabel(ylabel)
+    ax1.set_title(title_FPR, fontsize=20)
+    # Set ticks manually for imshow
+    ax1.set_xticks(np.arange(len(xticks)))
+    ax1.set_yticks(np.arange(len(yticks)))
+    ax1.set_xticklabels(xticks, rotation=90)
+    ax1.set_yticklabels(yticks)
+    # ax1.invert_yaxis() # origin='lower' handles the y-axis direction
+
+    # TPR plot using imshow
+    im2 = ax2.imshow(tpr_grid, cmap="viridis", vmin=0, vmax=1, aspect='auto', origin='lower')
+    fig.colorbar(im2, ax=ax2, label='True Positive Rate (↑)')
+    ax2.set_xlabel(xlabel)
+    ax2.set_ylabel(ylabel)
+    ax2.set_title(title_TPR, fontsize=20)
+    # Set ticks manually for imshow
+    ax2.set_xticks(np.arange(len(xticks)))
+    ax2.set_yticks(np.arange(len(yticks)))
+    ax2.set_xticklabels(xticks, rotation=90)
+    ax2.set_yticklabels(yticks)
+    # ax2.invert_yaxis() # origin='lower' handles the y-axis direction
+
+    # --- Contour plot ---
+    # Create coordinates for contour centers (matching imshow pixel centers)
+    x_centers = np.arange(fpr_grid.shape[1]) - 0.5
+    y_centers = np.arange(fpr_grid.shape[0]) - 0.5
+    X_centers, Y_centers = np.meshgrid(x_centers, y_centers)
+
+    # Generate FPR contour on FPR plot
+    fpr_CS = ax1.contour(X_centers, Y_centers, fpr_grid, levels=[levels], colors='red', linewidths=1.5, linestyles='-')
+    ax1.clabel(fpr_CS, fmt={levels: contour_label}, inline=True, fontsize=10)
+
+    # Display the same FPR contour on TPR plot
+    fpr_contour_on_tpr = ax2.contour(X_centers, Y_centers, fpr_grid, levels=[levels], colors='red', linewidths=1.5, linestyles='-')
+    ax2.clabel(fpr_contour_on_tpr, fmt={levels: contour_label}, inline=True, fontsize=10)
+
+    plt.tight_layout()
+    plt.savefig(os.path.join(args.log_dir, f'grids_{title_suffix}_heatmaps.pdf'))
+    plt.show()
+
+
+
+
 
 
 def image_distortion(img1, img2, seed, args, i, print_args=True):
@@ -169,7 +283,8 @@ def get_dataset_id(args):
 
 def get_dirs(args, script_type, extra=None):
 
-    base_dir = os.path.join("experiments", 
+    base_dir = os.path.join("experiments",
+                            args.exp_name, 
                             args.method,
                             args.model_id,
                             args.dataset_id,
@@ -200,7 +315,8 @@ def create_and_save_decode_confs(args):
 
     templates_dir = os.path.join('confs', 'decode_templates')
     # replace encoded_imgs with decoded_imgs in "data_dir"
-    output_conf_dir = os.path.join("experiments", 
+    output_conf_dir = os.path.join("experiments",
+                            args.exp_name, 
                             args.method,
                             args.model_id,
                             args.dataset_id,
@@ -208,7 +324,8 @@ def create_and_save_decode_confs(args):
                             "decode_imgs",
                             "confs"
                             )
-    output_jobs_dir = os.path.join("experiments", 
+    output_jobs_dir = os.path.join("experiments",
+                            args.exp_name, 
                             args.method,
                             args.model_id,
                             args.dataset_id,

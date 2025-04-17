@@ -532,3 +532,36 @@ def get_dataset(dataset):
 
     return dataset, prompt_key
 
+def create_diverse_pattern_list(original_patterns, num_repeats):
+    """
+    Create a more diverse pattern list by combining different patterns
+    from the original list instead of simple repetition.
+    
+    Args:
+        original_patterns: List of original watermark patterns (each with 4 channels)
+        num_repeats: Number of times to repeat/combine (latent_channels // 4)
+        
+    Returns:
+        List of combined patterns
+    """
+    pattern_count = len(original_patterns)
+    diverse_patterns = []
+    
+    for i, base_pattern in enumerate(original_patterns):
+        # Initialize with the base pattern shape but expanded channel dimension
+        combined_shape = (base_pattern.shape[0], 
+                            base_pattern.shape[1] * num_repeats, 
+                            base_pattern.shape[2], 
+                            base_pattern.shape[3])
+        combined_pattern = torch.zeros(combined_shape, device=base_pattern.device, dtype=base_pattern.dtype)
+        
+        # Fill in the combined pattern with different patterns
+        for j in range(num_repeats):
+            # Calculate a different index for each repetition 
+            # This creates diversity in the pattern combinations
+            offset = (i + j * pattern_count // num_repeats) % pattern_count
+            combined_pattern[:, j*4:(j+1)*4, :, :] = original_patterns[offset]
+        
+        diverse_patterns.append(combined_pattern)
+    
+    return diverse_patterns

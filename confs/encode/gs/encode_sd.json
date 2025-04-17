@@ -2,8 +2,8 @@
   "model_id": "sd",
   "latent_channels_wm": 4,
 
-  "dataset_id": "mjprompts",
-  "num_images": 101,
+  "dataset_id": "coco",
+  "num_images": 50,
   "inf_steps": 50,
   "fpr": 0.01,
   "guidance_scale": 3.0,
@@ -18,5 +18,7 @@
   "gs_hw_factor": 8,
   "gs_user_number": 1000000,
 
-  "run_name": "gs_default"
+  "run_name": "gs_default",
+
+  "exp_name": "grids_debug2"
 }

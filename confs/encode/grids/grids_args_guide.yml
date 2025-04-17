@@ -1,0 +1,16 @@
+# dataset specific arguments
+model_id: flux, sd
+dataset_id: coco, sdprompts
+num_images: 100
+inf_steps: 50
+fpr: 0.01
+guidance_scale: 3.0
+
+
+calc_FID: false
+calc_CLIP: false
+
+# watermark specific arguments
+look at rid and gs explanation of args
+
+

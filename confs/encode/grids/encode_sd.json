@@ -1,18 +1,19 @@
 {
-  "model_id": "flux_s",
-  "latent_channels_wm": 16,
-  
+  "model_id": "sd",
+  "latent_channels_wm": 4,
+
   "dataset_id": "coco",
-  "num_images": 50,
-  "inf_steps": 4,
+  "num_images": 4,
+  "inf_steps": 50,
   "fpr": 0.01,
   "guidance_scale": 3.0,
-  "test_inf_steps": 4,
+  "test_inf_steps": 50,
   
   "calc_FID": true,
   "calc_CLIP": true,
 
-  "method": "rid",
+  "method": "grids",
+
   "radius": 14,
   "radius_cutoff": 3, 
   "ring_watermark_channel": [3],
@@ -34,7 +35,12 @@
 
   "channel_min": 0,
 
-  "run_name": "rid_default",
+  "gs_chacha": true,
+  "gs_ch_factor": 1,
+  "gs_hw_factor": 8,
+  "gs_user_number": 1000000,
+
+  "run_name": "grids_default",
 
   "exp_name": "grids_debug2"
 }

@@ -16,7 +16,7 @@ import matplotlib.pyplot as plt
 
 from datasets import load_dataset
 
-from utils import seed_everything, print2file, get_dirs, load_prompts, bootstrap_tpr
+from utils import seed_everything, print2file, get_dirs, load_prompts, get_pipe, bootstrap_tpr, plot_heatmaps
 
 # Add the src directory to the Python path
 sys.path.append(os.path.join(os.path.dirname(__file__), 'prc'))
@@ -27,6 +27,9 @@ from gaussianshading.export import GSWatermark
 
 sys.path.append(os.path.join(os.path.dirname(__file__), 'rid'))
 from ringid.export import RingIDWatermark
+
+sys.path.append(os.path.join(os.path.dirname(__file__), 'grids'))
+from grids.export import GRIDSWatermark
 
 sys.path.append(os.path.join(os.path.dirname(__file__), 'treeringwatermark'))
 from treeringwatermark.export import TRWatermark
@@ -70,16 +73,23 @@ def main(args):
     for arg in vars(args):
         print2file(args.log_file, f'{arg}: {getattr(args, arg)}')
 
+    # set seed for internal WM viz and prompt loading
+    seed_everything(0) # should be 0 cause it gets set to 0 later in the loop
+
+    # create the pipe
+    pipe = get_pipe(args, device, HF_CACHE_DIR)
+
     # first genrate all the keys per method
     if args.method == 'prc':
-        prc_watermark = PRCWatermark(args, hf_cache_dir=HF_CACHE_DIR)
+        prc_watermark = PRCWatermark(args, pipe)
     elif args.method == 'gs':
-        gs_watermark = GSWatermark(args, hf_cache_dir=HF_CACHE_DIR)
+        gs_watermark = GSWatermark(args, pipe)
     elif args.method == 'tr':
-        tr_watermark = TRWatermark(args, hf_cache_dir=HF_CACHE_DIR)
+        tr_watermark = TRWatermark(args, pipe)
     elif args.method == 'rid':
-        rid_watermark = RingIDWatermark(args, hf_cache_dir=HF_CACHE_DIR)
-        
+        rid_watermark = RingIDWatermark(args, pipe)
+    elif args.method == 'grids':
+        grids_watermark = GRIDSWatermark(args, pipe)
     else:
         print2file(args.log_file, 'Invalid method')
         return
@@ -89,23 +99,7 @@ def main(args):
     # set seed for internal WM viz and prompt loading
     seed_everything(0) # should be 0 cause it gets set to 0 later in the loop
 
-    # # load the prompts
-    # if args.dataset_id == 'coco':
-    #     with open('coco/captions_val2017.json') as f:
-    #         all_prompts = [ann['caption'] for ann in json.load(f)['annotations']]
-    # elif args.dataset_id == 'sdprompts':
-    #     all_prompts = [sample['Prompt'] for sample in load_dataset('Gustavosta/Stable-Diffusion-Prompts')['test']]
-    # elif args.dataset_id == 'mjprompts':
-    #     all_prompts = [sample['caption'] for sample in load_dataset('bghira/mj-v52-redux')['Collection_20']]
-    # else:
-    #     print2file(args.log_file, 'Invalid dataset_id')
-    #     return
-    # # sample the prompts
-    # prompts = random.sample(all_prompts, args.num_images)
-    # print2file(args.log_file,  '\nPrompts:')
-    # for i, prompt in enumerate(prompts):
-    #     print2file(args.log_file, f'{i}: {prompt}')
-
+    # load the prompt dataset
     prompts = load_prompts(args)
 
     if args.calc_CLIP:
@@ -209,6 +203,11 @@ def main(args):
             results_decode_nowm = []
             thrshld_nowm = []
             thrshld_wm = []
+        if args.method == 'grids':
+            rid_nowm_metrics = []
+            rid_wm_metrics = []
+            gs_nowm_metrics = []
+            gs_wm_metrics = []
 
         # get dirs of the attacked images, per attack type
         if attack_type == 'distortion' or attack_type == 'adversarial_embed':
@@ -290,11 +289,179 @@ def main(args):
                 no_w_metric, w_metric = rid_watermark.eval_watermark(reversed_latents_nowm, reversed_latents_wm)
                 no_wm_metrics.append(-no_w_metric)
                 wm_metrics.append(-w_metric)
+            elif args.method == 'grids':
+                reversed_latents_nowm, true_latents_nowm = grids_watermark.get_inversed_latents(img_nowm_attacked, prompt='', do_wm=False, seed=i, pattern_index=args.pattern_index)
+                reversed_latents_wm, true_latents_wm = grids_watermark.get_inversed_latents(img_wm_attacked, prompt='', do_wm=True, seed=i, pattern_index=args.pattern_index)
+                if i == 0:
+                    grids_watermark.viz_reversed_latents(true_latents_nowm=true_latents_nowm,
+                                                        reversed_latents_nowm=reversed_latents_nowm,
+                                                        true_latents_wm=true_latents_wm,
+                                                        reversed_latents_wm=reversed_latents_wm,
+                                                        attack_name=attack_name, attack_vals=attack_vals, strength=strength)
+                # no_w_metric, w_metric = grids_watermark.eval_watermark(reversed_latents_nowm, reversed_latents_wm)
+                rid_nowm_metric, rid_wm_metric, gs_nowm_metric, gs_wm_metric = grids_watermark.eval_watermark(reversed_latents_nowm, reversed_latents_wm)
+                #no_wm_metrics.append(no_w_metric) # until now, the metrics are the same as for gs
+                #wm_metrics.append(w_metric)
+                rid_nowm_metrics.append(-rid_nowm_metric) #the rids are negative, as the roc_curve function expects the higher value to be the more likely to be positive/wm
+                rid_wm_metrics.append(-rid_wm_metric)
+                gs_nowm_metrics.append(gs_nowm_metric) # but the gs are positive, 
+                gs_wm_metrics.append(gs_wm_metric)
             else:
                 RuntimeError('Invalid method')
             wm_diffs.append((reversed_latents_wm - true_latents_wm).abs().mean().item()) # im image domain, the mean of the abs differences of the latents is the mean per-pixel difference
             no_wm_diffs.append((reversed_latents_nowm - true_latents_nowm).abs().mean().item())
-    
+
+
+        
+        
+        # The whole tor/accuray calcualtion is differnt for the GRIDS WM, as it uses two metrics
+        if args.method == 'grids':
+            #######################################################
+
+            # Convert to numpy arrays
+            gs_wm = np.array(gs_wm_metrics)
+            gs_nowm = np.array(gs_nowm_metrics)
+            rid_wm = np.array(rid_wm_metrics)
+            rid_nowm = np.array(rid_nowm_metrics)
+
+            # Define threshold ranges
+            gs_thresh_range = np.linspace(min(gs_nowm.min(), gs_wm.min()), max(gs_nowm.max(), gs_wm.max()), args.num_images) # range 0 - 1
+            rid_thresh_range = np.linspace(min(rid_nowm.min(), rid_wm.min()), max(rid_nowm.max(), rid_wm.max()), args.num_images) # range 0 - 64
+
+            # Initialize result grids
+            FPR_grid = np.zeros((len(gs_thresh_range), len(rid_thresh_range)))
+            TPR_grid = np.zeros((len(gs_thresh_range), len(rid_thresh_range)))
+
+            # Grid search over thresholds
+            for i, gs_thresh in enumerate(gs_thresh_range):
+                for j, rid_thresh in enumerate(rid_thresh_range):
+
+                    # Decisions using logical OR
+                    nowm_decisions = (gs_nowm > gs_thresh) | (rid_nowm > rid_thresh)
+                    wm_decisions = (gs_wm > gs_thresh) | (rid_wm > rid_thresh)
+
+                    fpr = np.mean(nowm_decisions)  # False positive rate
+                    tpr = np.mean(wm_decisions)    # True positive rate
+
+                    FPR_grid[i, j] = fpr
+                    TPR_grid[i, j] = tpr
+
+            # Plot FPR, TPR with contour at FPR = 0.01
+            plot_heatmaps(
+                args=args,
+                fpr_grid=FPR_grid,
+                tpr_grid=TPR_grid,
+                title_suffix=f'{attack_name}={attack_vals[strength]}',
+                xticks=np.round(rid_thresh_range, 2), 
+                yticks=np.round(gs_thresh_range, 2),
+                levels=args.fpr,
+            )
+
+            # find max TPR where FPR <= args.fpr
+            mask = FPR_grid <= args.fpr
+            
+            best_idx = np.unravel_index(np.argmax(TPR_grid * mask), TPR_grid.shape)
+            best_tpr = TPR_grid[best_idx]
+            best_gs_thresh = gs_thresh_range[best_idx[0]]
+            best_rid_thresh = rid_thresh_range[best_idx[1]]
+            print2file(args.log_file, f"\n✅ Max TPR @ FPR <= args.fpr: {best_tpr:.3f}")
+            print2file(args.log_file, f"   Optimal thresholds: GS={best_gs_thresh:.4f}, RID={best_rid_thresh:.4f}")
+        
+
+            # renaming some vars to match the other methods (from below)
+            low = best_tpr
+            # also bootstrap the TPR
+            # Create binary decisions for TPR and FPR
+            no_wm_metrics = ((gs_nowm > best_gs_thresh) | (rid_nowm > best_rid_thresh)).astype(int)
+            wm_metrics = ((gs_wm > best_gs_thresh) | (rid_wm > best_rid_thresh)).astype(int)
+            # print(f'no_wm_metrics shape: {no_wm_metrics.shape}')
+            # print(f'wm_metrics shape: {wm_metrics.shape}')
+            # print(f'no_wm_metrics dtype   : {no_wm_metrics.dtype}')
+            # print(f'wm_metrics dtype      : {wm_metrics.dtype}')
+            # cast to list 
+            no_wm_metrics = no_wm_metrics.tolist()
+            wm_metrics = wm_metrics.tolist()
+           
+            # # For AUC, fake scores could be max(gs_score_norm, rid_score_norm)
+            # # OR just use the binary decisions as "scores"
+            # preds_binary = np.concatenate([no_wm_metrics, wm_metrics])
+            # labels = [0] * len(no_wm_metrics) + [1] * len(wm_metrics)
+            # fpr, tpr, thresholds = metrics.roc_curve(labels, preds_binary, pos_label=1)
+            # auc = metrics.auc(fpr, tpr)
+            # acc = np.max(1 - (fpr + (1 - tpr))/2)
+            # # Find the TPR at the desired FPR
+            # index = np.where(fpr <= args.fpr)[0][-1]
+            # #low = tpr[index]
+            # threshold = thresholds[index] # not meaningful in this case
+            # print2file(args.log_file, '\n' + '#'*10 + '\n')
+            # print2file(args.log_file, f'\nTPR at fpr {args.fpr} (GRIDS)')
+            # print2file(args.log_file, f'\n\t{low}')
+            # print2file(args.log_file, f'\n(AUC: {auc}; ACC: {acc} at fpr {args.fpr})')
+            
+            # tpr_mean, tpr_std, ci_normal, ci_percentile = bootstrap_tpr(no_wm_metrics, wm_metrics, args.fpr)
+
+            # print2file(args.log_file, f'\nTPR at fpr {args.fpr} (GRIDS empirical mean): {tpr_mean:.4f}')
+            # print2file(args.log_file, f'Standard Error: {tpr_std:.4f}')
+            # print2file(args.log_file, f'95% CI (Normal Approximation): [{ci_normal[0]:.4f}, {ci_normal[1]:.4f}]')
+            # print2file(args.log_file, f'95% CI (Percentile Method): [{ci_percentile[0]:.4f}, {ci_percentile[1]:.4f}]')
+
+            #######################################################
+        
+            ## calculate the TPR afor just RID metrids
+            preds_rid = rid_nowm_metrics + rid_wm_metrics
+            t_labels_rid = [0] * len(rid_nowm_metrics) + [1] * len(rid_wm_metrics)
+            fpr_rid, tpr_rid, thresholds = metrics.roc_curve(t_labels_rid, preds_rid, pos_label=1)
+            auc_rid = metrics.auc(fpr_rid, tpr_rid)
+            acc_rid = np.max(1 - (fpr_rid + (1 - tpr_rid))/2)
+            # Find the TPR at the desired FPR
+            index = np.where(fpr_rid <= args.fpr)[0][-1]
+            low_rid = tpr_rid[index]
+            threshold_rid = thresholds[index]
+            print2file(args.log_file, '\n' + '#'*10 + '\n')
+            print2file(args.log_file, f'\nTPR at fpr {args.fpr} (RID)')
+            print2file(args.log_file, f'\n\t{low_rid}')
+            print2file(args.log_file, f'\n(AUC: {auc_rid}; ACC: {acc_rid} at fpr {args.fpr})')
+            # Print all FPR, TPR, and thresholds
+            print2file(args.log_file, '\nDetailed (RID) ROC Curve Data:')
+            for f, t, th in zip(fpr_rid, tpr_rid, thresholds):
+                print2file(args.log_file, f'FPR: {f:.3f}; TPR: {t:.3f}; Threshold: {th:.3f}')
+            print2file(args.log_file, '\n' + '#'*10 + '\n')
+            print2file(args.log_file, f'\nMean (RID) Metric for:')
+            print2file(args.log_file, f'\n\tWM: {np.mean(rid_wm_metrics)} vs NOWM: {np.mean(rid_nowm_metrics)}')
+            print2file(args.log_file, f'\nwith Threshold: {threshold_rid}')
+            print2file(args.log_file, f'\nstd WM: {np.std(rid_wm_metrics)} vs std NOWM: {np.std(rid_nowm_metrics)}')
+            print2file(args.log_file, f'\nWM metrics: {rid_wm_metrics}')
+            print2file(args.log_file, f'NOWM metrics: {rid_nowm_metrics}')
+
+            # calculate the TPR afor just GS metrids
+            preds = gs_nowm_metrics + gs_wm_metrics
+            t_labels = [0] * len(gs_nowm_metrics) + [1] * len(gs_wm_metrics)
+            fpr_gs, tpr_gs, thresholds = metrics.roc_curve(t_labels, preds, pos_label=1)
+            auc_gs = metrics.auc(fpr_gs, tpr_gs)
+            acc_gs = np.max(1 - (fpr_gs + (1 - tpr_gs))/2)
+            # Find the TPR at the desired FPR
+            index = np.where(fpr_gs <= args.fpr)[0][-1]
+            low_gs = tpr_gs[index]
+            threshold_gs = thresholds[index]
+            print2file(args.log_file, '\n' + '#'*10 + '\n')
+            print2file(args.log_file, f'\nTPR at fpr {args.fpr} (GS)')
+            print2file(args.log_file, f'\n\t{low_gs}')
+            print2file(args.log_file, f'\n(AUC: {auc_gs}; ACC: {acc_gs} at fpr {args.fpr})')
+            # Print all FPR, TPR, and thresholds
+            print2file(args.log_file, '\nDetailed (GS) ROC Curve Data:')
+            for f, t, th in zip(fpr_gs, tpr_gs, thresholds):
+                print2file(args.log_file, f'FPR: {f:.3f}; TPR: {t:.3f}; Threshold: {th:.3f}')
+            print2file(args.log_file, '\n' + '#'*10 + '\n')
+            print2file(args.log_file, f'\nMean (GS) Metric for:')
+            print2file(args.log_file, f'\n\tWM: {np.mean(gs_wm_metrics)} vs NOWM: {np.mean(gs_nowm_metrics)}')
+            print2file(args.log_file, f'\nwith Threshold: {threshold_gs}')
+            print2file(args.log_file, f'\nstd WM: {np.std(gs_wm_metrics)} vs std NOWM: {np.std(gs_nowm_metrics)}')
+            print2file(args.log_file, f'\nWM metrics: {gs_wm_metrics}')
+            print2file(args.log_file, f'NOWM metrics: {gs_nowm_metrics}')
+
+            ####################################################################
+        
+        
         # compute the results, the empirical ROC curve
         preds = no_wm_metrics + wm_metrics
         t_labels = [0] * len(no_wm_metrics) + [1] * len(wm_metrics)
@@ -350,10 +517,12 @@ def main(args):
         print2file(args.log_file, f'\nMean Metric for:')
         print2file(args.log_file, f'\n\tWM: {np.mean(wm_metrics)} vs NOWM: {np.mean(no_wm_metrics)}')
         print2file(args.log_file, f'\nwith Threshold: {threshold}')
+        print2file(args.log_file, f'\nstd WM: {np.std(wm_metrics)} vs std NOWM: {np.std(no_wm_metrics)}')
         print2file(args.log_file, f'\nWM metrics: {wm_metrics}')
         print2file(args.log_file, f'NOWM metrics: {no_wm_metrics}')
         print2file(args.log_file, f'\n\nMean per-pixel difference between true and reversed latents for:')
         print2file(args.log_file, f'\n\tWM: {np.mean(wm_diffs)} vs NOWM: {np.mean(no_wm_diffs)}')
+        print2file(args.log_file, f'\nstd WM: {np.std(wm_diffs)} vs std NOWM: {np.std(no_wm_diffs)}')
 
         # plot the ROC curve
         plt.figure()

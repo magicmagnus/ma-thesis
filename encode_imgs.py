@@ -14,7 +14,7 @@ from tqdm import tqdm
 
 from datasets import load_dataset
 
-from utils import seed_everything, print2file, get_dirs, create_and_save_decode_confs, load_prompts
+from utils import seed_everything, print2file, get_dirs, create_and_save_decode_confs, load_prompts, get_pipe
 
 # Add the source repositories to the path
 sys.path.append(os.path.join(os.path.dirname(__file__), 'prc'))
@@ -25,6 +25,9 @@ from gaussianshading.export import GSWatermark
 
 sys.path.append(os.path.join(os.path.dirname(__file__), 'rid'))
 from ringid.export import RingIDWatermark
+
+sys.path.append(os.path.join(os.path.dirname(__file__), 'grids'))
+from grids.export import GRIDSWatermark
 
 sys.path.append(os.path.join(os.path.dirname(__file__), 'treeringwatermark'))
 from treeringwatermark.export import TRWatermark
@@ -69,40 +72,30 @@ def main(args):
     # set seed for internal WM viz and prompt loading
     seed_everything(0) # should be 0 cause it gets set to 0 later in the loop
 
+    # create the pipe
+    pipe = get_pipe(args, device, HF_CACHE_DIR)
+
     # first genrate all the keys per method
     if args.method == 'prc':
-        prc_watermark = PRCWatermark(args, hf_cache_dir=HF_CACHE_DIR)
+        prc_watermark = PRCWatermark(args, pipe )
         encoder = prc_watermark
     elif args.method == 'gs':
-        gs_watermark = GSWatermark(args, hf_cache_dir=HF_CACHE_DIR)
+        gs_watermark = GSWatermark(args, pipe )
         encoder = gs_watermark
     elif args.method == 'tr':
-        tr_watermark = TRWatermark(args, hf_cache_dir=HF_CACHE_DIR)
+        tr_watermark = TRWatermark(args, pipe )
         encoder = tr_watermark
     elif args.method == 'rid':
-        rid_watermark = RingIDWatermark(args, hf_cache_dir=HF_CACHE_DIR)
+        rid_watermark = RingIDWatermark(args, pipe )
         encoder = rid_watermark
+    elif args.method == 'grids':
+        grids_watermark = GRIDSWatermark(args, pipe )
+        encoder = grids_watermark
     else:
         print2file(args.log_file, 'Invalid method')
         return
 
-#    # load the prompts
-#     if args.dataset_id == 'coco':
-#         with open('coco/captions_val2017.json') as f:
-#             all_prompts = [ann['caption'] for ann in json.load(f)['annotations']]
-#     elif args.dataset_id == 'sdprompts':
-#         all_prompts = [sample['Prompt'] for sample in load_dataset('Gustavosta/Stable-Diffusion-Prompts')['test']]
-#     elif args.dataset_id == 'mjprompts':
-#         all_prompts = [sample['caption'] for sample in load_dataset('bghira/mj-v52-redux')['Collection_3']]
-#     else:
-#         print2file(args.log_file, 'Invalid dataset_id')
-#         return
-#     # sample the prompts
-#     prompts = random.sample(all_prompts, args.num_images)
-#     print2file(args.log_file,  '\nPrompts:')
-#     for i, prompt in enumerate(prompts):
-#         print2file(args.log_file, f'{i}: {prompt}')
-
+    # load the prompt dataset
     prompts = load_prompts(args)
 
     
@@ -133,12 +126,12 @@ def main(args):
                                             do_wm=True,  
                                             seed=i,
                                             num_images_per_prompt=NUM_IMAGES_PER_PROMPT, 
-                                            pattern_index=args.pattern_index if args.method == 'rid' else None)
+                                            pattern_index=args.pattern_index if 'rid' in args.method else None)
         orig_image_nowm = encoder.generate_img(current_prompt, 
                                             do_wm=False, 
                                             seed=i,
                                             num_images_per_prompt=NUM_IMAGES_PER_PROMPT, 
-                                            pattern_index=args.pattern_index if args.method == 'rid' else None)
+                                            pattern_index=args.pattern_index if 'rid' in args.method else None)
         
         orig_image_wm.save(os.path.join(args.data_dir, 'wm', f'{i}.png'))
         orig_image_nowm.save(os.path.join(args.data_dir, 'nowm', f'{i}.png'))

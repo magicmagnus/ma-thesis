@@ -111,16 +111,24 @@ diff_model_markers = {
         'line': '-',
         'color': '#a800b7'
     },
+    'flux_s': {
+        'name': 'FLUX.1 [schnell]',
+        'marker': 'o',
+        'line': '-',
+        'color': '#ff04d5'
+    },
+
 }
 
 wm_methods_names = {
     'prc': 'PRC',
     'gs': 'Gaussian Shading',
+    'tr': 'Tree-Ring',
     'rid': 'Ring ID',
-    'tr': 'Tree-Ring'
+    'grids': 'GRIDS',
 }
 
-def merge_csv_for_dataset_identifier(experiments_dir, dataset_identifiers, output_file):
+def merge_csv_for_dataset_identifier(experiments_dir, dataset_identifiers, prompt_dataset, output_file):
     csv_files = []
     # print(f'Looking in {experiments_dir} for CSV files for dataset_identifier: {dataset_identifiers}')
     # Walk through the directory structure
@@ -134,7 +142,7 @@ def merge_csv_for_dataset_identifier(experiments_dir, dataset_identifiers, outpu
                 # print(f'2 Checking {root2}')
                 # print(f'2 with files: {files}')
                 for file in files:
-                    if file.endswith('.csv'):
+                    if file.endswith('.csv') and prompt_dataset in root2:
                         file_path = os.path.join(root2, file)
                         csv_files.append(file_path)
                         print(f'Found CSV file: {file_path}')
@@ -143,7 +151,7 @@ def merge_csv_for_dataset_identifier(experiments_dir, dataset_identifiers, outpu
         print(f'No CSV files found for dataset_identifier: {dataset_identifiers}')
         return
     
-    print(f'Merging {len(csv_files)} CSV files for dataset_identifier: {dataset_identifiers}')
+    print(f'Merging {len(csv_files)} CSV files for dataset_identifier: {dataset_identifiers} and prompt_dataset: {prompt_dataset}')
 
     # Combine all CSV files
     dfs = [pd.read_csv(csv_file) for csv_file in csv_files]
@@ -180,8 +188,6 @@ def order_attack_strengths(order, attack_strengths, attack_results, ci_lower, ci
         
     return strengths[idx], results[idx], ci_lower[idx], ci_upper[idx]
 
-# plots the tpr_empirical for each attack_strength for each model
-# has [num_attacks] rows, each row has [num_methods] subplots/cols, each subplot has [num_models] lines
 def plot_tpr_per_attack(args,results_df):
 
     #results_df = pd.read_csv(args.output_csv)
@@ -192,18 +198,23 @@ def plot_tpr_per_attack(args,results_df):
     wm_methods = results_df['wm_method'].unique()
     models = results_df['model_id'].unique()
 
-    # order the attacks based on the order in attack_name_mapping
+    # order the attacks and methods based on the order in name_mapping
     attack_names = np.array(sorted(attack_names, key=lambda x: list(attack_name_mapping.keys()).index(x)))
+    wm_methods = np.array(sorted(wm_methods, key=lambda x: list(wm_methods_names.keys()).index(x)))
 
     # for each attack, plot all 4 WM methods in 4 sublpots, all 2 models as lines
 
-    ncols = 4 # per method
+    ncols = wm_methods.shape[0]  # per method
     nrows = attack_names.shape[0] # for each attack
     fs = 10
     fs_title = 14
     y_adj = 0.95
     title_height_ratio = 0.65
-    title = f'Performance of watermarking methods under different attacks\n for experiments in \n{args.dataset_identifier}'
+    title = ( 
+        f'Performance of watermarking methods under different attacks\n'
+        f'for dataset "{args.prompt_dataset}" for experiments in \n'
+        f'{args.dataset_identifier}'
+    )
 
     fig, gs, title_axes = setup_gridspec_figure(
         nrows=nrows, ncols=ncols,
@@ -237,7 +248,6 @@ def plot_tpr_per_attack(args,results_df):
 
             for model in models:
                 model_df = wm_df[wm_df['model_id'] == model]
-                print(f'\n\tplotting {attack_name}, {wm_method}, {model}')
 
                 if attack_name == 'no_attack':
                     # No need to order the attack strengths for the no attack case
@@ -319,15 +329,20 @@ def plot_tpr_per_metric(args, results_df, metric_name, metric_column, title_suff
     models = results_df['model_id'].unique()
 
     attack_names = np.array(sorted(attack_names, key=lambda x: list(attack_name_mapping.keys()).index(x)))
+    wm_methods = np.array(sorted(wm_methods, key=lambda x: list(wm_methods_names.keys()).index(x)))
 
     # Setup figure with same layout
-    ncols = 4  # per method
+    ncols = wm_methods.shape[0]  # per method
     nrows = attack_names.shape[0]  # for each attack
     fs = 10
     fs_title = 14
     y_adj = 0.95
     title_height_ratio = 0.8
-    title = f'Watermarking performance vs {title_suffix}\n for experiments in \n{args.dataset_identifier}'
+    title = (
+        f'Watermarking performance vs {title_suffix}\n'
+        f'for dataset "{args.prompt_dataset}" for experiments in \n'
+        f'{args.dataset_identifier}'
+    )
 
     fig, gs, title_axes = setup_gridspec_figure(
         nrows=nrows, ncols=ncols,
@@ -342,10 +357,6 @@ def plot_tpr_per_metric(args, results_df, metric_name, metric_column, title_suff
                 fontsize=fs_title, fontweight="bold", ha="center", va="center")
                       
     handles, labels = [], []
-
-    #xmin = results_df[metric_column].min()
-    #xmax = results_df[metric_column].max()
-    #print(f"Min {metric_name}: {xmin}, Max {metric_name}: {xmax}")
 
     # Loop through attacks and watermarking methods
     for i, attack_name in enumerate(attack_names):
@@ -428,52 +439,43 @@ def plot_tpr_per_metric(args, results_df, metric_name, metric_column, title_suff
     print(f"\n{title_suffix} plot saved to {output_plot}")
 
 
-
-        
-
-
-
 if __name__ == '__main__':
     import argparse
 
     parser = argparse.ArgumentParser(description='Plot results of watermarking methods under different attacks')
-    parser.add_argument('--input_dir', type=str, default='experiments', help='Directory containing the CSV files')
-    parser.add_argument('--dataset_identifier', type=list, default=['num_5_fpr_0.01_cfg_3.0_wmch_16', 'num_5_fpr_0.01_cfg_3.0_wmch_4'] )
     parser.add_argument('--output_dir', type=str, default='experiments', help='Directory to save the merged CSV file')
-    
-
     args = parser.parse_args()
     
+
+    # specify which experimental setup we want to plot
+    args.num_imgs = 50
+    args.exp_name = 'grids_debug2'
+    args.prompt_dataset = 'coco'
+
+    # for now, we merge results over wmch_16 and wmch_4
+    # later we might want to include only one of them
+    # to compare external
+    args.dataset_identifier = [f'num_{args.num_imgs}_fpr_0.01_cfg_3.0_wmch_16', f'num_{args.num_imgs}_fpr_0.01_cfg_3.0_wmch_4'] 
     
-    num_imgs = 101
 
-    # if we want to compare sd and flux, we merge over wmch_16 and wmch_4
-    args.dataset_identifier = [f'num_{num_imgs}_fpr_0.01_cfg_3.0_wmch_16', f'num_{num_imgs}_fpr_0.01_cfg_3.0_wmch_4'] 
-    # if, for any reason later, we want to compare only one of them, we can change the dataset_identifier
-
-    # create the output directory
-    args.output_dir = os.path.join(args.output_dir, '_results', args.dataset_identifier[0])
+    # create the output directories and ffilenames
+    args.input_dir = os.path.join('experiments', args.exp_name)
+    args.output_dir = os.path.join(args.output_dir, args.exp_name, '_results', args.prompt_dataset,  args.dataset_identifier[0])
     if not os.path.exists(args.output_dir):
         os.makedirs(args.output_dir)
-
-    # create the output paths
     args.output_plot = os.path.join(args.output_dir, args.dataset_identifier[0] + '_plot.pdf')
     args.output_csv = os.path.join(args.output_dir, args.dataset_identifier[0] + '_merged.csv')
 
-    # merge all .csv files in the input_dir matching the dataset_identifiers into the output_csv
-    merge_csv_for_dataset_identifier(args.input_dir, args.dataset_identifier, args.output_csv)
-    # after this call, args.output_csv will contain the merged csv file
-
-    
-    # load new merged results
+    # merge all .csv files in the args.input_dir
+    # matching the dataset_identifiers and args.prompt_dataset
+    # into the args.output_csv
+    merge_csv_for_dataset_identifier(args.input_dir, args.dataset_identifier, args.prompt_dataset, args.output_csv)
     results_df = pd.read_csv(args.output_csv)
 
-    # plot the results
-    # againt their attack strength
+    # 1. plot TPR vs attack strength
     plot_tpr_per_attack(args, results_df)
 
-    # and against other metrics
-    # Plot TPR vs CLIP similarity score 
+    # 2. plot TPR vs CLIP 
     xmin = results_df['clip_score_wm'].min()
     xmax = results_df['clip_score_wm'].max()
     plot_tpr_per_metric(
@@ -486,7 +488,7 @@ if __name__ == '__main__':
         xlim=[xmin, xmax]
     )
     
-    # Plot TPR vs Diff score
+    # 3. plot TPR vs diff 
     xmin = results_df['wm_diff'].min()
     xmax = results_df['wm_diff'].max()
     plot_tpr_per_metric(
@@ -494,12 +496,12 @@ if __name__ == '__main__':
         results_df, 
         metric_name="wm_diff", 
         metric_column="wm_diff",
-        title_suffix="Diff",
+        title_suffix="Abs. Mean Difference (originial - recovered)",
         xlabel="Diff (↓)",
         xlim=[xmin, xmax]
     )
     
-    # Plot TPR vs FID score of WM vs COCO
+    # 4. plot TPR vs FID (WM vs COCO)
     xmin = results_df['fid_wm_coco'].min()
     xmax = results_df['fid_wm_coco'].max()
     plot_tpr_per_metric(
@@ -512,7 +514,7 @@ if __name__ == '__main__':
         xlim=[xmin, xmax]
     )
     
-    # Plot TPR vs FID score of WM vs NOWM
+    # 5. plot TPR vs FID (WM vs NOWM)
     xmin = results_df['fid_wm_nowm'].min()
     xmax = results_df['fid_wm_nowm'].max()
     plot_tpr_per_metric(

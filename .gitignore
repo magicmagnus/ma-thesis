@@ -170,6 +170,7 @@ keys/
 
 experiments/
 experiments2/
+experiments3/
 
 experiments/*
 !experiments/**/*.csv
