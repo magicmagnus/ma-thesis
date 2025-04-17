@@ -1,6 +1,6 @@
 import os
 if 'is/sg2' in os.getcwd():
-    os.environ['CUDA_VISIBLE_DEVICES'] = '4'
+    os.environ['CUDA_VISIBLE_DEVICES'] = '6'
 import sys
 import json
 import torch
@@ -325,8 +325,9 @@ def main(args):
             rid_nowm = np.array(rid_nowm_metrics)
 
             # Define threshold ranges
-            gs_thresh_range = np.linspace(min(gs_nowm.min(), gs_wm.min()), max(gs_nowm.max(), gs_wm.max()), args.num_images) # range 0 - 1
-            rid_thresh_range = np.linspace(min(rid_nowm.min(), rid_wm.min()), max(rid_nowm.max(), rid_wm.max()), args.num_images) # range 0 - 64
+            trheshold_stps = max(50, args.num_images)
+            gs_thresh_range = np.linspace(min(gs_nowm.min(), gs_wm.min()), max(gs_nowm.max(), gs_wm.max()), trheshold_stps) # range 0 - 1
+            rid_thresh_range = np.linspace(min(rid_nowm.min(), rid_wm.min()), max(rid_nowm.max(), rid_wm.max()), trheshold_stps) # range 0 - 64
 
             # Initialize result grids
             FPR_grid = np.zeros((len(gs_thresh_range), len(rid_thresh_range)))
@@ -370,40 +371,10 @@ def main(args):
 
             # renaming some vars to match the other methods (from below)
             low = best_tpr
-            # also bootstrap the TPR
-            # Create binary decisions for TPR and FPR
-            no_wm_metrics = ((gs_nowm > best_gs_thresh) | (rid_nowm > best_rid_thresh)).astype(int)
-            wm_metrics = ((gs_wm > best_gs_thresh) | (rid_wm > best_rid_thresh)).astype(int)
-            # print(f'no_wm_metrics shape: {no_wm_metrics.shape}')
-            # print(f'wm_metrics shape: {wm_metrics.shape}')
-            # print(f'no_wm_metrics dtype   : {no_wm_metrics.dtype}')
-            # print(f'wm_metrics dtype      : {wm_metrics.dtype}')
-            # cast to list 
-            no_wm_metrics = no_wm_metrics.tolist()
-            wm_metrics = wm_metrics.tolist()
-           
-            # # For AUC, fake scores could be max(gs_score_norm, rid_score_norm)
-            # # OR just use the binary decisions as "scores"
-            # preds_binary = np.concatenate([no_wm_metrics, wm_metrics])
-            # labels = [0] * len(no_wm_metrics) + [1] * len(wm_metrics)
-            # fpr, tpr, thresholds = metrics.roc_curve(labels, preds_binary, pos_label=1)
-            # auc = metrics.auc(fpr, tpr)
-            # acc = np.max(1 - (fpr + (1 - tpr))/2)
-            # # Find the TPR at the desired FPR
-            # index = np.where(fpr <= args.fpr)[0][-1]
-            # #low = tpr[index]
-            # threshold = thresholds[index] # not meaningful in this case
-            # print2file(args.log_file, '\n' + '#'*10 + '\n')
-            # print2file(args.log_file, f'\nTPR at fpr {args.fpr} (GRIDS)')
-            # print2file(args.log_file, f'\n\t{low}')
-            # print2file(args.log_file, f'\n(AUC: {auc}; ACC: {acc} at fpr {args.fpr})')
-            
-            # tpr_mean, tpr_std, ci_normal, ci_percentile = bootstrap_tpr(no_wm_metrics, wm_metrics, args.fpr)
-
-            # print2file(args.log_file, f'\nTPR at fpr {args.fpr} (GRIDS empirical mean): {tpr_mean:.4f}')
-            # print2file(args.log_file, f'Standard Error: {tpr_std:.4f}')
-            # print2file(args.log_file, f'95% CI (Normal Approximation): [{ci_normal[0]:.4f}, {ci_normal[1]:.4f}]')
-            # print2file(args.log_file, f'95% CI (Percentile Method): [{ci_percentile[0]:.4f}, {ci_percentile[1]:.4f}]')
+            # Create binary decisions for TPR and FPR for the bootstrapping later
+            no_wm_metrics = ((gs_nowm > best_gs_thresh) | (rid_nowm > best_rid_thresh)).astype(int).tolist()
+            wm_metrics = ((gs_wm > best_gs_thresh) | (rid_wm > best_rid_thresh)).astype(int).tolist()
+        
 
             #######################################################
         

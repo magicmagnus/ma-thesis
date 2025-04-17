@@ -104,7 +104,7 @@ class RingIDWatermark():
         init_latents = torch.from_numpy(init_latents_np).to(torch.float32).to(self.device)
         
         init_latents_watermarked = self.inject_watermark(init_latents, self.args.pattern_index)
-        print(f"init_latents RID dtype: {init_latents_watermarked.dtype}")
+        # print(f"init_latents RID dtype: {init_latents_watermarked.dtype}") # torch.float32
         diff = init_latents_watermarked - init_latents # only for before/after visualization
 
         init_latents_fft = torch.fft.fftshift(torch.fft.fft2(init_latents), dim=(-1, -2))

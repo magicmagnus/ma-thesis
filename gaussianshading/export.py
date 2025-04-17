@@ -198,8 +198,8 @@ class GSWatermark:
             metric_nowm = self.eval_watermark(reversed_latents_nowm, count=False)
         else: 
             print(f"eval wateramrk on channel {gs_watermark_channel}")
-            metric_wm = self.gs.eval_watermark(reversed_latents_wm[gs_watermark_channel], count=False)
-            metric_nowm = self.gs.eval_watermark(reversed_latents_nowm[gs_watermark_channel], count=False)
+            metric_wm = self.gs.eval_watermark(reversed_latents_wm[:, gs_watermark_channel, ...], count=False)
+            metric_nowm = self.gs.eval_watermark(reversed_latents_nowm[:, gs_watermark_channel, ...], count=False)
 
         diff_wm_wm = reversed_latents_wm - true_latents_wm # both again the same wm pattern
         diff_nowm_wm = reversed_latents_nowm - true_latents_wm
@@ -208,9 +208,6 @@ class GSWatermark:
         diff_nowm_true = reversed_latents_nowm - true_latents_nowm 
         mean_abs_diff_wm_true = torch.abs(diff_wm_true).mean().item()
         mean_abs_diff_nowm_true = torch.abs(diff_nowm_true).mean().item()
-
-        abs_diff_wmOLD = diff_wm_wm.abs()
-        abs_diff_nowmOLD = diff_nowm_wm.abs()
 
         mean_abs_diff_wm_wm = torch.abs(diff_wm_wm).mean().item()
         mean_abs_diff_nowm_wm = torch.abs(diff_nowm_wm).mean().item()

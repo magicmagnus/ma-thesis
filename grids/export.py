@@ -47,19 +47,18 @@ class GRIDSWatermark():
         self.rid_wm = RingIDWatermark(self.args, pipe)
         
         # 2. create the GS watermark 
-        # the RID watermark will be on the specific channels self.rid_wm.WATERMARK_CHANNEL, 
-        # e.g. [0, 3] of 4 available channels
-        # so create a new list with the opposite channels of the length of the latent_channels_wm
-        # in this case [1, 2] of the 4 available channels
+        # the RID watermark will be on self.rid_wm.WATERMARK_CHANNEL, 
+        # e.g. [0, 3] of 4 available wm_channels
+        # so create gs_watermark_channel for the opposite channels
+        # in this case [1, 2] of the 4 available wm_channels
         temp_latent_channels_wm = self.latent_channels_wm
-        args.latent_channels_wm = int(self.latent_channels_wm / 2) # e.g. 8 instead of 16
+        args.latent_channels_wm = int(self.latent_channels_wm / 2) # e.g. 8 instead of 16 or 2 instead of 4
         self.gs_watermark_channel = [i for i in range(self.latent_channels_wm) if i not in self.rid_wm.watermark_channel]
         print(f'[GRIDSWatermark] gs_watermark_channel: {self.gs_watermark_channel}')
         self.gs_wm = GSWatermark(self.args, pipe)
         
         args.latent_channels_wm = temp_latent_channels_wm # reset the args object to the original value for the RID watermark
         
-
         # generate single watermark pattern for visualization
         self.visualize_watermark_pattern()
 
