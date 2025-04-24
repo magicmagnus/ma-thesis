@@ -1,6 +1,6 @@
 import os
 if 'is/sg2' in os.getcwd():
-    os.environ['CUDA_VISIBLE_DEVICES'] = '6'
+    os.environ['CUDA_VISIBLE_DEVICES'] = '7'
 import sys
 import json
 import torch
@@ -358,16 +358,23 @@ def main(args):
                 levels=args.fpr,
             )
 
-            # find max TPR where FPR <= args.fpr
-            mask = FPR_grid <= args.fpr
-            
-            best_idx = np.unravel_index(np.argmax(TPR_grid * mask), TPR_grid.shape)
-            best_tpr = TPR_grid[best_idx]
-            best_gs_thresh = gs_thresh_range[best_idx[0]]
-            best_rid_thresh = rid_thresh_range[best_idx[1]]
-            print2file(args.log_file, f"\n✅ Max TPR @ FPR <= args.fpr: {best_tpr:.3f}")
-            print2file(args.log_file, f"   Optimal thresholds: GS={best_gs_thresh:.4f}, RID={best_rid_thresh:.4f}")
-        
+            # find max TPR where FPR <= args.fpr     
+            mask = np.array(FPR_grid <= 0.01)
+            masked_tpr = np.where(mask, TPR_grid, -np.inf)  # keep values >= 0, rest are not valid tpr values 
+
+            if np.any(mask):
+                best_idx = np.unravel_index(np.argmax(masked_tpr), masked_tpr.shape)
+                best_tpr = TPR_grid[best_idx]
+                best_gs_thresh = gs_thresh_range[best_idx[0]]
+                best_rid_thresh = rid_thresh_range[best_idx[1]]
+            else:
+                print("\nNo threshold pair found that achieves FPR <= 0.01")
+                best_tpr = 0.0
+                best_gs_thresh = gs_thresh_range[-1] # i.e ca 0.54, max(gs_thresh_range)?
+                best_rid_thresh = rid_thresh_range[-1] # i.e ca -64, max(rid_thresh_range)?
+                
+            print(f"\nDual Metric TPR @ FPR <= 0.01: {best_tpr:.3f}")
+            print(f"\nOptimal thresholds: GS={best_gs_thresh:.4f}, RID={best_rid_thresh:.4f}")
 
             # renaming some vars to match the other methods (from below)
             low = best_tpr
@@ -378,57 +385,57 @@ def main(args):
 
             #######################################################
         
-            ## calculate the TPR afor just RID metrids
-            preds_rid = rid_nowm_metrics + rid_wm_metrics
-            t_labels_rid = [0] * len(rid_nowm_metrics) + [1] * len(rid_wm_metrics)
-            fpr_rid, tpr_rid, thresholds = metrics.roc_curve(t_labels_rid, preds_rid, pos_label=1)
-            auc_rid = metrics.auc(fpr_rid, tpr_rid)
-            acc_rid = np.max(1 - (fpr_rid + (1 - tpr_rid))/2)
-            # Find the TPR at the desired FPR
-            index = np.where(fpr_rid <= args.fpr)[0][-1]
-            low_rid = tpr_rid[index]
-            threshold_rid = thresholds[index]
-            print2file(args.log_file, '\n' + '#'*10 + '\n')
-            print2file(args.log_file, f'\nTPR at fpr {args.fpr} (RID)')
-            print2file(args.log_file, f'\n\t{low_rid}')
-            print2file(args.log_file, f'\n(AUC: {auc_rid}; ACC: {acc_rid} at fpr {args.fpr})')
-            # Print all FPR, TPR, and thresholds
-            print2file(args.log_file, '\nDetailed (RID) ROC Curve Data:')
-            for f, t, th in zip(fpr_rid, tpr_rid, thresholds):
-                print2file(args.log_file, f'FPR: {f:.3f}; TPR: {t:.3f}; Threshold: {th:.3f}')
-            print2file(args.log_file, '\n' + '#'*10 + '\n')
-            print2file(args.log_file, f'\nMean (RID) Metric for:')
-            print2file(args.log_file, f'\n\tWM: {np.mean(rid_wm_metrics)} vs NOWM: {np.mean(rid_nowm_metrics)}')
-            print2file(args.log_file, f'\nwith Threshold: {threshold_rid}')
-            print2file(args.log_file, f'\nstd WM: {np.std(rid_wm_metrics)} vs std NOWM: {np.std(rid_nowm_metrics)}')
-            print2file(args.log_file, f'\nWM metrics: {rid_wm_metrics}')
-            print2file(args.log_file, f'NOWM metrics: {rid_nowm_metrics}')
+            # ## calculate the TPR afor just RID metrids
+            # preds_rid = rid_nowm_metrics + rid_wm_metrics
+            # t_labels_rid = [0] * len(rid_nowm_metrics) + [1] * len(rid_wm_metrics)
+            # fpr_rid, tpr_rid, thresholds = metrics.roc_curve(t_labels_rid, preds_rid, pos_label=1)
+            # auc_rid = metrics.auc(fpr_rid, tpr_rid)
+            # acc_rid = np.max(1 - (fpr_rid + (1 - tpr_rid))/2)
+            # # Find the TPR at the desired FPR
+            # index = np.where(fpr_rid <= args.fpr)[0][-1]
+            # low_rid = tpr_rid[index]
+            # threshold_rid = thresholds[index]
+            # print2file(args.log_file, '\n' + '#'*10 + '\n')
+            # print2file(args.log_file, f'\nTPR at fpr {args.fpr} (RID)')
+            # print2file(args.log_file, f'\n\t{low_rid}')
+            # print2file(args.log_file, f'\n(AUC: {auc_rid}; ACC: {acc_rid} at fpr {args.fpr})')
+            # # Print all FPR, TPR, and thresholds
+            # print2file(args.log_file, '\nDetailed (RID) ROC Curve Data:')
+            # for f, t, th in zip(fpr_rid, tpr_rid, thresholds):
+            #     print2file(args.log_file, f'FPR: {f:.3f}; TPR: {t:.3f}; Threshold: {th:.3f}')
+            # print2file(args.log_file, '\n' + '#'*10 + '\n')
+            # print2file(args.log_file, f'\nMean (RID) Metric for:')
+            # print2file(args.log_file, f'\n\tWM: {np.mean(rid_wm_metrics)} vs NOWM: {np.mean(rid_nowm_metrics)}')
+            # print2file(args.log_file, f'\nwith Threshold: {threshold_rid}')
+            # print2file(args.log_file, f'\nstd WM: {np.std(rid_wm_metrics)} vs std NOWM: {np.std(rid_nowm_metrics)}')
+            # print2file(args.log_file, f'\nWM metrics: {rid_wm_metrics}')
+            # print2file(args.log_file, f'NOWM metrics: {rid_nowm_metrics}')
 
-            # calculate the TPR afor just GS metrids
-            preds = gs_nowm_metrics + gs_wm_metrics
-            t_labels = [0] * len(gs_nowm_metrics) + [1] * len(gs_wm_metrics)
-            fpr_gs, tpr_gs, thresholds = metrics.roc_curve(t_labels, preds, pos_label=1)
-            auc_gs = metrics.auc(fpr_gs, tpr_gs)
-            acc_gs = np.max(1 - (fpr_gs + (1 - tpr_gs))/2)
-            # Find the TPR at the desired FPR
-            index = np.where(fpr_gs <= args.fpr)[0][-1]
-            low_gs = tpr_gs[index]
-            threshold_gs = thresholds[index]
-            print2file(args.log_file, '\n' + '#'*10 + '\n')
-            print2file(args.log_file, f'\nTPR at fpr {args.fpr} (GS)')
-            print2file(args.log_file, f'\n\t{low_gs}')
-            print2file(args.log_file, f'\n(AUC: {auc_gs}; ACC: {acc_gs} at fpr {args.fpr})')
-            # Print all FPR, TPR, and thresholds
-            print2file(args.log_file, '\nDetailed (GS) ROC Curve Data:')
-            for f, t, th in zip(fpr_gs, tpr_gs, thresholds):
-                print2file(args.log_file, f'FPR: {f:.3f}; TPR: {t:.3f}; Threshold: {th:.3f}')
-            print2file(args.log_file, '\n' + '#'*10 + '\n')
-            print2file(args.log_file, f'\nMean (GS) Metric for:')
-            print2file(args.log_file, f'\n\tWM: {np.mean(gs_wm_metrics)} vs NOWM: {np.mean(gs_nowm_metrics)}')
-            print2file(args.log_file, f'\nwith Threshold: {threshold_gs}')
-            print2file(args.log_file, f'\nstd WM: {np.std(gs_wm_metrics)} vs std NOWM: {np.std(gs_nowm_metrics)}')
-            print2file(args.log_file, f'\nWM metrics: {gs_wm_metrics}')
-            print2file(args.log_file, f'NOWM metrics: {gs_nowm_metrics}')
+            # # calculate the TPR afor just GS metrids
+            # preds = gs_nowm_metrics + gs_wm_metrics
+            # t_labels = [0] * len(gs_nowm_metrics) + [1] * len(gs_wm_metrics)
+            # fpr_gs, tpr_gs, thresholds = metrics.roc_curve(t_labels, preds, pos_label=1)
+            # auc_gs = metrics.auc(fpr_gs, tpr_gs)
+            # acc_gs = np.max(1 - (fpr_gs + (1 - tpr_gs))/2)
+            # # Find the TPR at the desired FPR
+            # index = np.where(fpr_gs <= args.fpr)[0][-1]
+            # low_gs = tpr_gs[index]
+            # threshold_gs = thresholds[index]
+            # print2file(args.log_file, '\n' + '#'*10 + '\n')
+            # print2file(args.log_file, f'\nTPR at fpr {args.fpr} (GS)')
+            # print2file(args.log_file, f'\n\t{low_gs}')
+            # print2file(args.log_file, f'\n(AUC: {auc_gs}; ACC: {acc_gs} at fpr {args.fpr})')
+            # # Print all FPR, TPR, and thresholds
+            # print2file(args.log_file, '\nDetailed (GS) ROC Curve Data:')
+            # for f, t, th in zip(fpr_gs, tpr_gs, thresholds):
+            #     print2file(args.log_file, f'FPR: {f:.3f}; TPR: {t:.3f}; Threshold: {th:.3f}')
+            # print2file(args.log_file, '\n' + '#'*10 + '\n')
+            # print2file(args.log_file, f'\nMean (GS) Metric for:')
+            # print2file(args.log_file, f'\n\tWM: {np.mean(gs_wm_metrics)} vs NOWM: {np.mean(gs_nowm_metrics)}')
+            # print2file(args.log_file, f'\nwith Threshold: {threshold_gs}')
+            # print2file(args.log_file, f'\nstd WM: {np.std(gs_wm_metrics)} vs std NOWM: {np.std(gs_nowm_metrics)}')
+            # print2file(args.log_file, f'\nWM metrics: {gs_wm_metrics}')
+            # print2file(args.log_file, f'NOWM metrics: {gs_nowm_metrics}')
 
             ####################################################################
         
@@ -449,8 +456,6 @@ def main(args):
         print2file(args.log_file, f'\n\t{low}')
         print2file(args.log_file, f'\n(AUC: {auc}; ACC: {acc} at fpr {args.fpr})')
        
-        #print2file(args.log_file, f'\nThreshold: {threshold} with mean WM dist: {np.mean(wm_metrics)} and mean NOWM dist: {np.mean(no_wm_metrics)}')
-
         tpr_mean, tpr_std, ci_normal, ci_percentile = bootstrap_tpr(no_wm_metrics, wm_metrics, args.fpr)
 
         print2file(args.log_file, f'\nTPR at fpr {args.fpr} (empirical mean): {tpr_mean:.4f}')

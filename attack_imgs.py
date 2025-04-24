@@ -11,6 +11,8 @@ import argparse
 import numpy as np
 from tqdm import tqdm
 from PIL import Image
+from PIL import ImageFile
+ImageFile.LOAD_TRUNCATED_IMAGES = True
 
 from datasets import load_dataset
 
