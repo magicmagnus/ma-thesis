@@ -82,7 +82,7 @@ def main(args):
     prompts = load_prompts(args)
 
     
-    distortions = ['r_degree', 'jpeg_ratio', 'crop_scale', 'crop_ratio', 'gaussian_blur_r', 'gaussian_std', 'brightness_factor', ]
+    distortions = ['r_degree', 'jpeg_ratio', 'crop_scale', 'crop_ratio', 'crop', 'gaussian_blur_r', 'gaussian_std', 'brightness_factor', ]
     adversarial_embeds = ['adv_embed_resnet18', 'adv_embed_clip', 'adv_embed_klvae8', 'adv_embed_sdxlvae', 'adv_embed_klvae16']
     adversarial_surr = ['adv_surr_resnet18', 'adv_surr_resnet50']
     attack_vals = ['no_attack']

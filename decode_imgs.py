@@ -145,7 +145,7 @@ def main(args):
     })
 
     # 
-    distortions = ['r_degree', 'jpeg_ratio', 'crop_scale', 'crop_ratio', 'gaussian_blur_r', 'gaussian_std', 'brightness_factor', ]
+    distortions = ['r_degree', 'jpeg_ratio', 'crop_scale', 'crop_ratio', 'crop', 'gaussian_blur_r', 'gaussian_std', 'brightness_factor', ]
     adversarial_embeds = ['adv_embed_resnet18', 'adv_embed_resnet50', 'adv_embed_klvae8', 'adv_embed_sdxlvae', 'adv_embed_klvae16']
     adversarial_surr = ['adv_surr_resnet18', 'adv_surr_resnet50']
     attack_vals = ['no_attack']
@@ -368,13 +368,13 @@ def main(args):
                 best_gs_thresh = gs_thresh_range[best_idx[0]]
                 best_rid_thresh = rid_thresh_range[best_idx[1]]
             else:
-                print("\nNo threshold pair found that achieves FPR <= 0.01")
+                print2file(args.log_file, "\nNo threshold pair found that achieves FPR <= 0.01")
                 best_tpr = 0.0
                 best_gs_thresh = gs_thresh_range[-1] # i.e ca 0.54, max(gs_thresh_range)?
                 best_rid_thresh = rid_thresh_range[-1] # i.e ca -64, max(rid_thresh_range)?
                 
-            print(f"\nDual Metric TPR @ FPR <= 0.01: {best_tpr:.3f}")
-            print(f"\nOptimal thresholds: GS={best_gs_thresh:.4f}, RID={best_rid_thresh:.4f}")
+            print2file(args.log_file, f"\nDual Metric TPR @ FPR <= 0.01: {best_tpr:.3f}")
+            print2file(args.log_file, f"\nOptimal thresholds: GS={best_gs_thresh:.4f}, RID={best_rid_thresh:.4f}")
 
             # renaming some vars to match the other methods (from below)
             low = best_tpr

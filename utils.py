@@ -245,7 +245,19 @@ def image_distortion(img1, img2, seed, args, i, print_args=True):
         img2 = transforms.RandomResizedCrop(img2.size, scale=scale, ratio=ratio, interpolation=InterpolationMode.BICUBIC)(img2)
         if print_args: 
             #print2file(args.log_file, f"Cropping images with scale {args.crop_scale[i]} and ratio {args.crop_ratio[i]}")
-            save_name += f"_crop{args.crop_scale[i]}_{args.crop_ratio[i]}"
+            save_name += f"_cropscale{args.crop_scale[i]}_{args.crop_ratio[i]}"
+     
+    if hasattr(args, 'crop'): # scale between 0 and 1
+        scale = (args.crop[i], args.crop[i]) # e.g. exact 50% amount of the area
+        ratio = (1.0, 1.0)  # e.g. (0.5, 1.5)
+        
+        seed_everything(seed)
+        img1 = transforms.RandomResizedCrop(img1.size, scale=scale, ratio=ratio, interpolation=InterpolationMode.BICUBIC)(img1)
+        seed_everything(seed)
+        img2 = transforms.RandomResizedCrop(img2.size, scale=scale, ratio=ratio, interpolation=InterpolationMode.BICUBIC)(img2)
+        if print_args: 
+            #print2file(args.log_file, f"Cropping images with scale {args.crop[i]}}")
+            save_name += f"_crop{args.crop[i]}"
         
     if hasattr(args, 'gaussian_blur_r'):# radius between 0 and inf (ca. 50)
         img1 = img1.filter(ImageFilter.GaussianBlur(radius=args.gaussian_blur_r[i]))
