@@ -16,7 +16,7 @@ import matplotlib.pyplot as plt
 
 from datasets import load_dataset
 
-from utils import seed_everything, print2file, get_dirs, load_prompts, get_pipe, bootstrap_tpr, plot_heatmaps
+from utils import seed_everything, print2file, get_dirs, load_prompts, get_pipe, bootstrap_tpr, bootstrap_grids_tpr, plot_heatmaps
 
 # Add the src directory to the Python path
 sys.path.append(os.path.join(os.path.dirname(__file__), 'prc'))
@@ -318,18 +318,16 @@ def main(args):
         if args.method == 'grids':
             #######################################################
 
-            # Convert to numpy arrays
             gs_wm = np.array(gs_wm_metrics)
             gs_nowm = np.array(gs_nowm_metrics)
             rid_wm = np.array(rid_wm_metrics)
             rid_nowm = np.array(rid_nowm_metrics)
 
-            # Define threshold ranges
-            trheshold_stps = max(50, args.num_images)
+            # threshold ranges
+            trheshold_stps = 50 # max(50, args.num_images)
             gs_thresh_range = np.linspace(min(gs_nowm.min(), gs_wm.min()), max(gs_nowm.max(), gs_wm.max()), trheshold_stps) # range 0 - 1
             rid_thresh_range = np.linspace(min(rid_nowm.min(), rid_wm.min()), max(rid_nowm.max(), rid_wm.max()), trheshold_stps) # range 0 - 64
 
-            # Initialize result grids
             FPR_grid = np.zeros((len(gs_thresh_range), len(rid_thresh_range)))
             TPR_grid = np.zeros((len(gs_thresh_range), len(rid_thresh_range)))
 
@@ -376,9 +374,12 @@ def main(args):
             print2file(args.log_file, f"\nDual Metric TPR @ FPR <= 0.01: {best_tpr:.3f}")
             print2file(args.log_file, f"\nOptimal thresholds: GS={best_gs_thresh:.4f}, RID={best_rid_thresh:.4f}")
 
+            ## UNTIL HERE: 
+            # for best threshold pair calculation
+
             # renaming some vars to match the other methods (from below)
             low = best_tpr
-            # Create binary decisions for TPR and FPR for the bootstrapping later
+            # Create binary decisions for TPR and FPR , only for the printing before the bootstrap
             no_wm_metrics = ((gs_nowm > best_gs_thresh) | (rid_nowm > best_rid_thresh)).astype(int).tolist()
             wm_metrics = ((gs_wm > best_gs_thresh) | (rid_wm > best_rid_thresh)).astype(int).tolist()
         
@@ -455,8 +456,11 @@ def main(args):
         print2file(args.log_file, f'\nTPR at fpr {args.fpr} (empirical)')
         print2file(args.log_file, f'\n\t{low}')
         print2file(args.log_file, f'\n(AUC: {auc}; ACC: {acc} at fpr {args.fpr})')
-       
-        tpr_mean, tpr_std, ci_normal, ci_percentile = bootstrap_tpr(no_wm_metrics, wm_metrics, args.fpr)
+
+        if args.method == 'grids':
+            tpr_mean, tpr_std, ci_normal, ci_percentile = bootstrap_grids_tpr(gs_nowm, gs_wm, rid_nowm, rid_wm, best_gs_thresh, best_rid_thresh, args.fpr)
+        else:
+            tpr_mean, tpr_std, ci_normal, ci_percentile = bootstrap_tpr(no_wm_metrics, wm_metrics, args.fpr)
 
         print2file(args.log_file, f'\nTPR at fpr {args.fpr} (empirical mean): {tpr_mean:.4f}')
         print2file(args.log_file, f'Standard Error: {tpr_std:.4f}')

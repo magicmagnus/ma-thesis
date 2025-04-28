@@ -3,7 +3,7 @@
   "latent_channels_wm": 16,
   
   "dataset_id": "coco",
-  "num_images": 50,
+  "num_images": 200,
   "inf_steps": 50,
   "fpr": 0.01,
   "guidance_scale": 3.0,
@@ -42,5 +42,5 @@
 
   "run_name": "grids_default",
 
-  "exp_name": "grids_debug2"
+  "exp_name": "exp1"
 }

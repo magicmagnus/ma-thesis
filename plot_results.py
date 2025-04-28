@@ -25,6 +25,12 @@ attack_name_mapping = {
         'order': 'low-to-high',
         'cast_to_int': False
     },
+    'crop': {
+        'name': 'Crop (ratio)',
+        'x_axis': 'Crop ratio',
+        'order': 'low-to-high',
+        'cast_to_int': False
+    },
     'jpeg_ratio': {
         'name': 'JPEG (quality factor)',
         'x_axis': 'Quality factor', 
@@ -448,8 +454,8 @@ if __name__ == '__main__':
     
 
     # specify which experimental setup we want to plot
-    args.num_imgs = 50
-    args.exp_name = 'grids_debug2'
+    args.num_imgs = 200
+    args.exp_name = 'exp1'
     args.prompt_dataset = 'coco'
 
     # for now, we merge results over wmch_16 and wmch_4

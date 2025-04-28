@@ -9,6 +9,7 @@ from torchvision.transforms.functional import InterpolationMode
 import matplotlib.gridspec as gridspec
 import matplotlib.pyplot as plt
 import seaborn as sns
+from sklearn import metrics
 
  # flux
 from pipes.inverse_flux_pipeline import InversableFluxPipeline
@@ -114,8 +115,6 @@ def get_pipe(args, device, HF_CACHE_DIR):
 
 
 def bootstrap_tpr(no_wm_metrics, wm_metrics, fpr_target, n_bootstraps=1000):
-    from sklearn import metrics
-    from scipy.stats import norm
     
     tpr_samples = []
     n_wm = len(wm_metrics)
@@ -148,6 +147,49 @@ def bootstrap_tpr(no_wm_metrics, wm_metrics, fpr_target, n_bootstraps=1000):
     ci_lower_perc, ci_upper_perc = np.percentile(tpr_samples, [2.5, 97.5])
 
     return tpr_mean, tpr_std, (ci_lower, ci_upper), (ci_lower_perc, ci_upper_perc)
+
+def bootstrap_grids_tpr(gs_nowm, gs_wm, rid_nowm, rid_wm, best_gs_thresh, best_rid_thresh, fpr_target, n_bootstraps=1000):
+
+    tpr_samples = []
+    n_wm = len(gs_wm)
+    n_nowm = len(gs_nowm)
+
+    for _ in range(n_bootstraps):
+        # Bootstrap resample
+        idx_wm = np.random.choice(n_wm, size=n_wm, replace=True)
+        idx_nowm = np.random.choice(n_nowm, size=n_nowm, replace=True)
+
+        gs_wm_resample = gs_wm[idx_wm]
+        gs_nowm_resample = gs_nowm[idx_nowm]
+        rid_wm_resample = rid_wm[idx_wm]
+        rid_nowm_resample = rid_nowm[idx_nowm]
+
+        # Apply OR rule
+        preds_wm = ((gs_wm_resample > best_gs_thresh) | (rid_wm_resample > best_rid_thresh)).astype(int)
+        preds_nowm = ((gs_nowm_resample > best_gs_thresh) | (rid_nowm_resample > best_rid_thresh)).astype(int)
+
+        preds = np.concatenate([preds_nowm, preds_wm])
+        labels = np.array([0] * len(preds_nowm) + [1] * len(preds_wm))
+
+        fpr, tpr, thresholds = metrics.roc_curve(labels, preds, pos_label=1)
+
+        # Find TPR at given FPR
+        valid = np.where(fpr <= fpr_target)[0]
+        if len(valid) > 0:
+            tpr_samples.append(tpr[valid[-1]])
+        else:
+            tpr_samples.append(0.0)  # no threshold achieving target FPR
+
+    # Calculate statistics
+    tpr_samples = np.array(tpr_samples)
+    tpr_mean = np.mean(tpr_samples)
+    tpr_std = np.std(tpr_samples)
+
+    ci_normal = (tpr_mean - 1.96 * tpr_std, tpr_mean + 1.96 * tpr_std)
+    ci_percentile = np.percentile(tpr_samples, [2.5, 97.5])
+
+    return tpr_mean, tpr_std, ci_normal, ci_percentile
+
 
 def plot_heatmaps(args, fpr_grid, tpr_grid, title_suffix, xticks, yticks, levels=0.01, contour_label='FPR = 0.01'):
     xlabel = 'RID Thresholds (higher = more likely WM)'
@@ -397,7 +439,8 @@ def create_and_save_decode_confs(args):
     # 2. add line for that attack type to submit_decode_all and submit_attack_all
 
     decode_mem = 16000 if args.model_id == 'sd' else 50000 # in MB
-    attack_mem = 10000 # in MB
+    attack_mem = 20000 # in MB
+    job_bid = 100 # cluster money amount
 
     for template in templates: # template has format "[attack_name].json"
         
@@ -489,8 +532,8 @@ def create_and_save_decode_confs(args):
         # 2. add line for that attack type to submit_decode_all and submit_attack_all
         if not "default" in template_name:
             # we only need to attack the non-default ones, the default is not a real attack
-            submit_attack_all += f"condor_submit_bid 20 /fast/mkaut/ma-thesis/{output_jobs_dir}/attack/{template_name}.sub\n"
-        submit_decode_all += f"condor_submit_bid 20 /fast/mkaut/ma-thesis/{output_jobs_dir}/decode/{template_name}.sub\n"
+            submit_attack_all += f"condor_submit_bid {job_bid} /fast/mkaut/ma-thesis/{output_jobs_dir}/attack/{template_name}.sub\n"
+        submit_decode_all += f"condor_submit_bid {job_bid} /fast/mkaut/ma-thesis/{output_jobs_dir}/decode/{template_name}.sub\n"
 
     # save the .sh submit files
     with open(os.path.join(output_jobs_dir, "submit_decode_all.sh"), 'w') as f:
