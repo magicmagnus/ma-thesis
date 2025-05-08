@@ -21,7 +21,7 @@ condor_q mkaut
 condor_rm 15905476.0
 
 
-## encodeing, decodeing and attacking
+## encoding, decoding and attacking
 - encode.py
     - gets encoding/conf.yml file with watermark parameters
     - generates 2 sets of images, wm and no_wm
