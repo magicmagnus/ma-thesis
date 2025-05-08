@@ -64,7 +64,7 @@ def load_prompts(args):
         print2file(args.log_file, 'Invalid dataset_id')
         return
     # sample the prompts
-    seed_everything(43) # should be 0 cause it gets set to 0 later in the loop
+    seed_everything(44) # should be 0 cause it gets set to 0 later in the loop
     prompts = random.sample(all_prompts, args.num_images)
     seed_everything(0) # should be 0 cause it gets set to 0 later in the loop
     print2file(args.log_file,  '\nPrompts:')
@@ -185,6 +185,64 @@ def bootstrap_grids_tpr(gs_nowm, gs_wm, rid_nowm, rid_wm, best_gs_thresh, best_r
     tpr_mean = np.mean(tpr_samples)
     tpr_std = np.std(tpr_samples)
 
+    ci_normal = (tpr_mean - 1.96 * tpr_std, tpr_mean + 1.96 * tpr_std)
+    ci_percentile = np.percentile(tpr_samples, [2.5, 97.5])
+
+    return tpr_mean, tpr_std, ci_normal, ci_percentile
+
+def bootstrap_grids_dynamic_thresholds(
+    gs_nowm, gs_wm,
+    rid_nowm, rid_wm,
+    fpr_target=0.01,
+    n_bootstraps=1000,
+    n_thresholds=50
+):
+
+    tpr_samples = []
+    n_wm = len(gs_wm)
+    n_nowm = len(gs_nowm)
+
+    # Define full threshold ranges (same every time)
+    gs_thresh_range = np.linspace(min(np.min(gs_nowm), np.min(gs_wm)), max(np.max(gs_nowm), np.max(gs_wm)), n_thresholds)
+    rid_thresh_range = np.linspace(min(np.min(rid_nowm), np.min(rid_wm)), max(np.max(rid_nowm), np.max(rid_wm)), n_thresholds)
+
+    for _ in range(n_bootstraps):
+        # Resample with replacement
+        idx_wm = np.random.choice(n_wm, size=n_wm, replace=True)
+        idx_nowm = np.random.choice(n_nowm, size=n_nowm, replace=True)
+
+        gs_wm_boot = gs_wm[idx_wm]
+        gs_nowm_boot = gs_nowm[idx_nowm]
+        rid_wm_boot = rid_wm[idx_wm]
+        rid_nowm_boot = rid_nowm[idx_nowm]
+
+        # Grid search to find best threshold pair
+        best_tpr = 0.0
+        best_gs_thresh = 0.0
+        best_rid_thresh = 0.0
+
+        for gs_thresh in gs_thresh_range:
+            for rid_thresh in rid_thresh_range:
+                preds_wm = ((gs_wm_boot > gs_thresh) | (rid_wm_boot > rid_thresh)).astype(int)
+                preds_nowm = ((gs_nowm_boot > gs_thresh) | (rid_nowm_boot > rid_thresh)).astype(int)
+
+                tpr = np.mean(preds_wm)
+                fpr = np.mean(preds_nowm)
+
+                if fpr <= fpr_target and tpr > best_tpr: # get best TPR thats below the FPR threshold
+                    best_tpr = tpr
+                    best_gs_thresh = gs_thresh
+                    best_rid_thresh = rid_thresh
+
+        tpr_samples.append(best_tpr)
+        print(f"[bootstrapping] Best TPR: {best_tpr}, GS Threshold: {best_gs_thresh}, RID Threshold: {best_rid_thresh}")
+
+    # Convert to numpy array
+    tpr_samples = np.array(tpr_samples)
+
+    # Compute statistics
+    tpr_mean = np.mean(tpr_samples)
+    tpr_std = np.std(tpr_samples)
     ci_normal = (tpr_mean - 1.96 * tpr_std, tpr_mean + 1.96 * tpr_std)
     ci_percentile = np.percentile(tpr_samples, [2.5, 97.5])
 

@@ -254,6 +254,10 @@ def plot_tpr_per_attack(args,results_df):
 
             for model in models:
                 model_df = wm_df[wm_df['model_id'] == model]
+                # Check if the model_df is empty
+                if model_df.empty:
+                    print(f"\nWarning: No data for {attack_name}, {wm_method}, {model}\n")
+                    continue
 
                 if attack_name == 'no_attack':
                     # No need to order the attack strengths for the no attack case
@@ -282,8 +286,8 @@ def plot_tpr_per_attack(args,results_df):
                 # pllot the CI as a shaded region
                 #only if there are no NaN values in the CI or the lists are not empty
                 if (not np.isnan(ci_lower).any() and not np.isnan(ci_upper).any()) or (len(ci_lower) > 0 and len(ci_upper) > 0):
-                    print(f'\t\tplotting CI for {attack_name}, {wm_method}, {model}')
-                    print(f'\t\tci_lower: {ci_lower}')
+                    #print(f'\t\tplotting CI for {attack_name}, {wm_method}, {model}')
+                    #print(f'\t\tci_lower: {ci_lower}')
                     axes[j].fill_between(strengths, ci_lower, ci_upper, color=diff_model_markers[model]['color'], alpha=0.2)
                     if attack_name == 'no_attack':
                         axes[j].plot(strengths, ci_lower, color=diff_model_markers[model]['color'], alpha=0.2, marker='x', linestyle='--')
@@ -294,9 +298,9 @@ def plot_tpr_per_attack(args,results_df):
                     handles.append(line)
                     labels.append(label)
 
-            # Set only the actual strength values as ticks
-            axes[j].set_xticks(strengths)
-            axes[j].set_xticklabels(strengths)
+                # Set only the actual strength values as ticks
+                axes[j].set_xticks(strengths)
+                axes[j].set_xticklabels(strengths)
             
             # Set axis direction based on attack type
             if attack_name_mapping[attack_name]['order'] == 'low-to-high':
@@ -454,14 +458,14 @@ if __name__ == '__main__':
     
 
     # specify which experimental setup we want to plot
-    args.num_imgs = 200
-    args.exp_name = 'exp1'
+    args.num_imgs = 100
+    args.exp_name = 'exp2'
     args.prompt_dataset = 'coco'
 
     # for now, we merge results over wmch_16 and wmch_4
     # later we might want to include only one of them
     # to compare external
-    args.dataset_identifier = [f'num_{args.num_imgs}_fpr_0.01_cfg_3.0_wmch_16', f'num_{args.num_imgs}_fpr_0.01_cfg_3.0_wmch_4'] 
+    args.dataset_identifier = [f'num_{args.num_imgs}_fpr_0.01_cfg_3.0_wmch_16'] #, f'num_{args.num_imgs}_fpr_0.01_cfg_3.0_wmch_4'] 
     
 
     # create the output directories and ffilenames

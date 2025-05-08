@@ -16,7 +16,7 @@ import matplotlib.pyplot as plt
 
 from datasets import load_dataset
 
-from utils import seed_everything, print2file, get_dirs, load_prompts, get_pipe, bootstrap_tpr, bootstrap_grids_tpr, plot_heatmaps
+from utils import seed_everything, print2file, get_dirs, load_prompts, get_pipe, bootstrap_tpr, bootstrap_grids_tpr, bootstrap_grids_dynamic_thresholds, plot_heatmaps
 
 # Add the src directory to the Python path
 sys.path.append(os.path.join(os.path.dirname(__file__), 'prc'))
@@ -113,7 +113,37 @@ def main(args):
         ref_tokenizer = open_clip.get_tokenizer(REFERENCE_MODEL)
 
     # create the results dataframe
-    results_df = pd.DataFrame(columns=['wm_method', 'model_id', 'dataset_id', 'attack_type', 'attack_name', 'attack_strength', 'tpr_empirical', 'tpr_empirical_mean', 'tpr_std_error', 'tpr_ci_lower_percentile', 'tpr_ci_upper_percentile',  'auc', 'acc', 'tpr_analytical', 'tpr_decode', 'tpr_traceability', 'threshold', 'mean_wm_dist', 'mean_no_wm_dist', 'wm_diff', 'nowm_diff', 'clip_score_wm', 'clip_score_nowm', 'fid_wm_coco', 'fid_nowm_coco', 'fid_wm_nowm', 'set_fpr'])
+    results_df = pd.DataFrame(columns=['wm_method', 
+                                       'model_id', 
+                                       'dataset_id',
+                                       'attack_type',
+                                       'attack_name',
+                                       'attack_strength',
+                                       'tpr_empirical',
+                                       'tpr_empirical_mean',
+                                       'tpr_std_error',
+                                       'tpr_ci_lower_percentile',
+                                       'tpr_ci_upper_percentile',
+                                        'auc',
+                                       'acc',
+                                       'tpr_analytical',
+                                       'tpr_decode',
+                                       'tpr_traceability',
+                                       'threshold',
+                                       'mean_wm_dist',
+                                       'mean_no_wm_dist',
+                                       'wm_diff',
+                                       'nowm_diff',
+                                       'clip_score_wm',
+                                       'clip_score_nowm',
+                                       'fid_wm_coco',
+                                       'fid_nowm_coco',
+                                       'fid_wm_nowm',
+                                       'set_fpr',
+                                       'wm_ch',
+                                       'inf_steps',
+                                       'test_inf_steps',
+                                       'guidance_scale',])
     results_df = results_df.astype({
         'wm_method': 'string',
         'model_id': 'string', 
@@ -141,7 +171,11 @@ def main(args):
         'fid_wm_coco': 'float64',
         'fid_nowm_coco': 'float64',
         'fid_wm_nowm': 'float64',
-        'set_fpr': 'float64'
+        'set_fpr': 'float64',
+        'wm_ch': 'float64',
+        'inf_steps': 'float64',
+        'test_inf_steps': 'float64',
+        'guidance_scale': 'float64',
     })
 
     # 
@@ -324,9 +358,9 @@ def main(args):
             rid_nowm = np.array(rid_nowm_metrics)
 
             # threshold ranges
-            trheshold_stps = 50 # max(50, args.num_images)
-            gs_thresh_range = np.linspace(min(gs_nowm.min(), gs_wm.min()), max(gs_nowm.max(), gs_wm.max()), trheshold_stps) # range 0 - 1
-            rid_thresh_range = np.linspace(min(rid_nowm.min(), rid_wm.min()), max(rid_nowm.max(), rid_wm.max()), trheshold_stps) # range 0 - 64
+            THRESHOLD_STEPS = 50 # max(50, args.num_images)
+            gs_thresh_range = np.linspace(min(gs_nowm.min(), gs_wm.min()), max(gs_nowm.max(), gs_wm.max()), THRESHOLD_STEPS) # range 0 - 1
+            rid_thresh_range = np.linspace(min(rid_nowm.min(), rid_wm.min()), max(rid_nowm.max(), rid_wm.max()), THRESHOLD_STEPS) # range 0 - 64
 
             FPR_grid = np.zeros((len(gs_thresh_range), len(rid_thresh_range)))
             TPR_grid = np.zeros((len(gs_thresh_range), len(rid_thresh_range)))
@@ -458,7 +492,8 @@ def main(args):
         print2file(args.log_file, f'\n(AUC: {auc}; ACC: {acc} at fpr {args.fpr})')
 
         if args.method == 'grids':
-            tpr_mean, tpr_std, ci_normal, ci_percentile = bootstrap_grids_tpr(gs_nowm, gs_wm, rid_nowm, rid_wm, best_gs_thresh, best_rid_thresh, args.fpr)
+            #tpr_mean, tpr_std, ci_normal, ci_percentile = bootstrap_grids_tpr(gs_nowm, gs_wm, rid_nowm, rid_wm, best_gs_thresh, best_rid_thresh, args.fpr)
+            tpr_mean, tpr_std, ci_normal, ci_percentile = bootstrap_grids_dynamic_thresholds(gs_nowm, gs_wm, rid_nowm, rid_wm, args.fpr, n_thresholds=50)
         else:
             tpr_mean, tpr_std, ci_normal, ci_percentile = bootstrap_tpr(no_wm_metrics, wm_metrics, args.fpr)
 
@@ -589,10 +624,14 @@ def main(args):
             'nowm_diff': np.mean(no_wm_diffs),
             'clip_score_wm': clip_score_wm,
             'clip_score_nowm': clip_score_nowm,
-            'fid_wm_coco': fid_wm_coco, # technically, FID is not a score, but a distance, so save it as such
+            'fid_wm_coco': fid_wm_coco, # technically, FID is not a score, but a distance
             'fid_nowm_coco': fid_nowm_coco,
             'fid_wm_nowm': fid_wm_nowm,
-            'set_fpr': args.fpr
+            'set_fpr': args.fpr,
+            'wm_ch': args.latent_channels_wm,
+            'inf_steps': args.inf_steps,
+            'test_inf_steps': args.test_inf_steps,
+            'guidance_scale': args.guidance_scale,
         }
 
         # save the results to existing dataframe

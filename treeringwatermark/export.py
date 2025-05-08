@@ -37,7 +37,7 @@ class TRWatermark():
 
         self.latent_channels = 4 if args.model_id == 'sd' else 16
         self.latent_channels_wm = args.latent_channels_wm
-        self.shape = (1, self.latent_channels_wm, 64, 64)
+        self.shape = (1, self.latent_channels, 64, 64)
 
         # wm specific args
         self.w_seed = args.w_seed
