@@ -16,7 +16,8 @@ import matplotlib.pyplot as plt
 
 from datasets import load_dataset
 
-from utils import seed_everything, print2file, get_dirs, load_prompts, get_pipe, bootstrap_tpr, bootstrap_grids_tpr, bootstrap_grids_dynamic_thresholds, plot_heatmaps
+from utils import seed_everything, print2file, get_dirs, load_prompts, get_pipe, bootstrap_tpr, bootstrap_grids_tpr, bootstrap_grids_dynamic_thresholds 
+from utils_plotting import plot_heatmaps
 
 # Add the src directory to the Python path
 sys.path.append(os.path.join(os.path.dirname(__file__), 'prc'))
@@ -37,8 +38,8 @@ import treeringwatermark.open_clip as open_clip
 from treeringwatermark.optim_utils import measure_similarity
 from treeringwatermark.pytorch_fid.fid_score import calculate_fid_given_paths
 
-sys.path.append(os.path.join(os.path.dirname(__file__), 'waves', 'adversarial'))
-from waves.adversarial.embedding import adv_emb_attack_custom 
+# sys.path.append(os.path.join(os.path.dirname(__file__), 'waves', 'adversarial'))
+# from waves.adversarial.embedding import adv_emb_attack_custom 
 
 
 

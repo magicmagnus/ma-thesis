@@ -5,7 +5,8 @@ import pickle
 import numpy as np
 import matplotlib.pyplot as plt
 
-from utils import seed_everything, transform_img, plot_wm_pattern_spatial_domain, visualize_reversed_latents_spatial_domain
+from utils import seed_everything, transform_img
+from utils_plotting import plot_wm_pattern_spatial_domain, visualize_reversed_latents_spatial_domain
 import src.pseudogaussians as prc_gaussians
 from src.optim_utils import get_dataset, image_distortion #, transform_img,
 from src.prc import KeyGen, Encode, str_to_bin, bin_to_str, Detect, Decode

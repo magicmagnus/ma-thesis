@@ -5,7 +5,8 @@ import pickle
 import numpy as np
 import matplotlib.pyplot as plt
 
-from utils import seed_everything, transform_img, plot_wm_pattern_spatial_domain, visualize_reversed_latents_spatial_domain
+from utils import seed_everything, transform_img
+from utils_plotting import plot_wm_pattern_spatial_domain, visualize_reversed_latents_spatial_domain
 from .watermark import Gaussian_Shading_chacha, Gaussian_Shading
 
 # Add parent directory to path

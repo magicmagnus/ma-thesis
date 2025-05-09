@@ -8,7 +8,8 @@ import itertools
 import numpy as np
 import matplotlib.pyplot as plt
 
-from utils import seed_everything, transform_img, plot_wm_pattern_fft, plot_wm_latents_fft, visualize_reversed_latents_fft
+from utils import seed_everything, transform_img
+from utils_plotting import plot_wm_pattern_fft, plot_wm_latents_fft, visualize_reversed_latents_fft
 from .utils import ring_mask, make_Fourier_ringid_pattern, fft, ifft, create_diverse_pattern_list
 
 

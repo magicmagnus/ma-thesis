@@ -3,7 +3,6 @@ import os
 import matplotlib.pyplot as plt
 import numpy as np
 
-from utils import setup_gridspec_figure
 
 
 def merge_csv_for_dataset_identifier(experiments_dir, dataset_identifiers, prompt_dataset, output_file):
