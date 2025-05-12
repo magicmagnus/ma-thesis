@@ -55,76 +55,27 @@ if __name__ == '__main__':
 
     # depending on the experiment, we need merge over all number of channels, as they should also be 
     # specfied in their respeictive csv files
-    args.dataset_identifier = [f'num_{args.num_imgs}_fpr_0.01_cfg_3.0_wmch_16', 
-                               f'num_{args.num_imgs}_fpr_0.01_cfg_3.0_wmch_12',
-                               f'num_{args.num_imgs}_fpr_0.01_cfg_3.0_wmch_8',
-                               f'num_{args.num_imgs}_fpr_0.01_cfg_3.0_wmch_4'] 
+
+    # # for exp1, we just have 2 types of watermarking channels
+    # args.dataset_identifier = [f'num_{args.num_imgs}_fpr_0.01_cfg_3.0_wmch_16',
+    #                            f'num_{args.num_imgs}_fpr_0.01_cfg_3.0_wmch_4'] 
+    
+    # for exp2, we have 4 types of watermarking channels
+    args.dataset_identifier = [f'num_{args.num_imgs}_fpr_0.01_cfg_3.0_wmch_16', ]
+                            #    f'num_{args.num_imgs}_fpr_0.01_cfg_3.0_wmch_12',
+                            #    f'num_{args.num_imgs}_fpr_0.01_cfg_3.0_wmch_8',
+                            #    f'num_{args.num_imgs}_fpr_0.01_cfg_3.0_wmch_4'] 
 
     # create the output directories and ffilenames
     args.input_dir = os.path.join('experiments', args.exp_name)
     args.output_dir = os.path.join(args.output_dir, args.exp_name, '_results', args.prompt_dataset,  args.dataset_identifier[0])
     if not os.path.exists(args.output_dir):
         os.makedirs(args.output_dir)
-    args.output_plot = os.path.join(args.output_dir, args.dataset_identifier[0] + '_plot.pdf')
-    args.output_csv = os.path.join(args.output_dir, args.dataset_identifier[0] + '_merged.csv')
+    args.output_csv = os.path.join(args.output_dir,  f'{args.exp_name}_merged.csv')
 
     # merge all .csv files in the args.input_dir
     # matching the dataset_identifiers and args.prompt_dataset
     # into the args.output_csv
     merge_csv_for_dataset_identifier(args.input_dir, args.dataset_identifier, args.prompt_dataset, args.output_csv)
-    # results_df = pd.read_csv(args.output_csv)
 
-    # # 1. plot TPR vs attack strength
-    # plot_tpr_per_attack(args, results_df)
-
-    # # 2. plot TPR vs CLIP 
-    # xmin = results_df['clip_score_wm'].min()
-    # xmax = results_df['clip_score_wm'].max()
-    # plot_tpr_per_metric(
-    #     args, 
-    #     results_df, 
-    #     metric_name="clip_score", 
-    #     metric_column="clip_score_wm",
-    #     title_suffix="CLIP similarity score",
-    #     xlabel="CLIP score (↑)",
-    #     xlim=[xmin, xmax]
-    # )
     
-    # # 3. plot TPR vs diff 
-    # xmin = results_df['wm_diff'].min()
-    # xmax = results_df['wm_diff'].max()
-    # plot_tpr_per_metric(
-    #     args, 
-    #     results_df, 
-    #     metric_name="wm_diff", 
-    #     metric_column="wm_diff",
-    #     title_suffix="Abs. Mean Difference (originial - recovered)",
-    #     xlabel="Diff (↓)",
-    #     xlim=[xmin, xmax]
-    # )
-    
-    # # 4. plot TPR vs FID (WM vs COCO)
-    # xmin = results_df['fid_wm_coco'].min()
-    # xmax = results_df['fid_wm_coco'].max()
-    # plot_tpr_per_metric(
-    #     args, 
-    #     results_df, 
-    #     metric_name="fid_coco", 
-    #     metric_column="fid_wm_coco",
-    #     title_suffix="FID (WM vs COCO)",
-    #     xlabel="FID (↓)",
-    #     xlim=[xmin, xmax]
-    # )
-    
-    # # 5. plot TPR vs FID (WM vs NOWM)
-    # xmin = results_df['fid_wm_nowm'].min()
-    # xmax = results_df['fid_wm_nowm'].max()
-    # plot_tpr_per_metric(
-    #     args, 
-    #     results_df, 
-    #     metric_name="fid_wm_nowm", 
-    #     metric_column="fid_wm_nowm",
-    #     title_suffix="FID (WM vs NOWM)",
-    #     xlabel="FID (↓)",
-    #     xlim=[xmin, xmax]
-    # )

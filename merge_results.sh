@@ -14,4 +14,4 @@ echo "activated conda env"
 export PYTHONNOUSERSITE=1
 
 # Run the Python script
-/is/sg2/mkaut/miniconda3/bin/python plot_results.py 
+/is/sg2/mkaut/miniconda3/bin/python 5_merge_results.py 
