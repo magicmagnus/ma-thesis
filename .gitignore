@@ -178,3 +178,5 @@ experiments/*
 
 *.out
 *.err
+
+x_imgs_comp/

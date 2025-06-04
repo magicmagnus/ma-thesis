@@ -118,19 +118,19 @@ class InversableFluxPipeline(ModifiedFluxPipeline):
         # reverse the necessary tensors
         # sigmas_orig = self.scheduler.sigmas # high to low, float32
         if reverse_process:
-            print("[FluxPipe] Forward process")
+            #print("[FluxPipe] Forward process")
             timesteps = torch.flip(timesteps, [0])
             self.scheduler.sigmas = torch.flip(self.scheduler.sigmas, [0])  # Reverse sigmas, float32
             self.scheduler._step_index = 0  # Start at the beginning of reversed sigmas
-            print("[FluxPipe] reversed sigmas:", self.scheduler.sigmas) # [0.00, 0.25, 0.50, 0.75, 1.00], increasing
-            print("[FluxPipe] reversed timesteps", timesteps) # [ 250.,  500.,  750., 1000.], increasing
-            print("[FluxPipe] step index", self.scheduler._step_index) # 0 -> 1000, increasing
-        else:
+            # print("[FluxPipe] reversed sigmas:", self.scheduler.sigmas) # [0.00, 0.25, 0.50, 0.75, 1.00], increasing
+            # print("[FluxPipe] reversed timesteps", timesteps) # [ 250.,  500.,  750., 1000.], increasing
+            # print("[FluxPipe] step index", self.scheduler._step_index) # 0 -> 1000, increasing
+        #else:
             # not printed, as normal backward is called from orig flux_pipeline.py
-            print("[FluxPipe] Backward process")
-            print("[FluxPipe] original sigmas:", self.scheduler.sigmas) # [1.00, 0.75, 0.50, 0.25, 0.00], decreasing
-            print("[FluxPipe] original timesteps", timesteps) # [1000.,  750.,  500.,  250.]
-            print("[FluxPipe] step index", self.scheduler._step_index) # None, increasing
+            # print("[FluxPipe] Backward process")
+            # print("[FluxPipe] original sigmas:", self.scheduler.sigmas) # [1.00, 0.75, 0.50, 0.25, 0.00], decreasing
+            # print("[FluxPipe] original timesteps", timesteps) # [1000.,  750.,  500.,  250.]
+            # print("[FluxPipe] step index", self.scheduler._step_index) # None, increasing
 
         #t1 = time.time()
 

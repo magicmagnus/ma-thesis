@@ -13,6 +13,15 @@ from sklearn import metrics
 import pandas as pd
 from argparse import Namespace
 
+# Add palatino-clone fonts to matplotlib
+import matplotlib.font_manager as fm
+for font_file in os.listdir('fonts'):
+    if font_file.endswith('.otf'):
+        fm.fontManager.addfont(os.path.join('fonts', font_file))
+# Configure matplotlib
+plt.rcParams['font.family'] = 'TeX Gyre Pagella'
+plt.rcParams['mathtext.fontset'] = 'stix'
+
 
 def setup_gridspec_figure(nrows, ncols, fs, title, fs_title, y_adj, title_height_ratio, sp_width=1.5, sp_height=1.5, height_correction=0):
     """Create figure with gridspec layout and title rows."""
@@ -236,6 +245,46 @@ def plot_wm_latents_fft(num_channels, init_latents_fft, init_latents_watermarked
     
     plt.savefig(save_path, bbox_inches='tight', pad_inches=0.2)
     plt.close(fig)
+
+    # # Also, save just the 4. channel of the watermarked latents in spatial domain as an image with colormap OrRd 
+    # # so that we can use it for the paper
+
+    
+    # # Save the 4th channel of the watermarked latents
+    # wm_latent_4 = init_latents_watermarked[0, 3].cpu().numpy()
+    # wm_latent_4_normalized = ((wm_latent_4 - wm_latent_4.min()) / (wm_latent_4.max() - wm_latent_4.min()) * 255).astype(np.uint8)
+    # plt.figure(figsize=(8, 8))
+    # plt.imshow(wm_latent_4_normalized, interpolation='nearest', cmap='YlGn', vmin=50, vmax=205)
+    # plt.axis('off')
+    # plt.savefig(save_path.replace('.pdf', '_wm_latent_4.png'), 
+    #             dpi=72, 
+    #             bbox_inches='tight', 
+    #             pad_inches=0)
+    
+    # # same for channel 0, 
+    # wm_latent_0 = init_latents_watermarked[0, 1].cpu().numpy()
+    # wm_latent_0_normalized = ((wm_latent_0 - wm_latent_0.min()) / (wm_latent_0.max() - wm_latent_0.min()) * 255).astype(np.uint8)
+    # plt.figure(figsize=(8, 8))
+    # plt.imshow(wm_latent_0_normalized, interpolation='nearest', cmap='YlGn', vmin=50, vmax=205)
+    # plt.axis('off')
+    # plt.savefig(save_path.replace('.pdf', '_wm_latent_1.png'), 
+    #             dpi=72, 
+    #             bbox_inches='tight', 
+    #             pad_inches=0)
+    
+    # # Now the 4th channel of the watermarked latents in fourier domain as an image but with cmap 'GnBu'
+    # wm_latent_4_fft = init_latents_watermarked_fft[0, 3].real.cpu().numpy()
+    # wm_latent_4_fft_normalized = ((wm_latent_4_fft - wm_latent_4_fft.min()) / (wm_latent_4_fft.max() - wm_latent_4_fft.min()) * 255).astype(np.uint8)
+    # plt.figure(figsize=(8, 8))
+    # plt.imshow(wm_latent_4_fft_normalized, interpolation='nearest', cmap='GnBu', vmin=50, vmax=205)
+    # plt.axis('off')
+    # plt.savefig(save_path.replace('.pdf', '_wm_latent_4_fft.png'),
+    #             dpi=72, 
+    #             bbox_inches='tight', 
+    #             pad_inches=0)
+
+
+
 
 # for RID and TR
 def visualize_reversed_latents_fft(num_channels, 
@@ -527,7 +576,7 @@ ATTACK_NAME_MAPPING = {
 
 MODEL_NAME_MAPPING = {
     'sd': {
-        'name': 'Stable Diffusion v2-1-base',
+        'name': 'Stable Diffusion v2-1 base',
         'marker': 'o',
         'line': '-',
         'color': '#1447e6'
@@ -548,34 +597,34 @@ MODEL_NAME_MAPPING = {
 }
 
 METHODS_NAME_MAPPING = {
-    'prc': 'PRC',
-    'gs': 'Gaussian Shading',
     'tr': 'Tree-Ring',
-    'rid': 'Ring ID',
+    'rid': 'RingID',
+    'gs': 'Gaussian Shading',
+    'prc': 'PRC',
     'grids': 'GRIDS',
 }
 
 WMCH_NAME_MAPPING = {
     4: {
-        'name': '4 WM channel',
+        'name': '4 WmCh',
         'marker': 'o',
         'line': '-',
         'color': '#A800B7'
     },
     8: {
-        'name': '8 WM channel',
+        'name': '8 WmCh',
         'marker': 'x',
         'line': '-',
         'color': '#C54690'
     },
     12: {
-        'name': '12 WM channel',
+        'name': '12 WmCh',
         'marker': 'o',
         'line': '-',
         'color': '#E28D69'
     },
     16: {
-        'name': '16 WM channel',
+        'name': '16 WmCh',
         'marker': 'x',
         'line': '-',
         'color': '#FFD342'
