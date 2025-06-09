@@ -61,7 +61,7 @@ def load_prompts(args):
         print2file(args.log_file, 'Invalid dataset_id')
         return
     # sample the prompts
-    seed_everything(30) # should be 0 cause it gets set to 0 later in the loop
+    seed_everything(24) # should be 0 cause it gets set to 0 later in the loop
     prompts = random.sample(all_prompts, args.num_images)
     seed_everything(0) # should be 0 cause it gets set to 0 later in the loop
     print2file(args.log_file,  '\nPrompts:')

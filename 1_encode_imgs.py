@@ -96,8 +96,7 @@ def main(args):
         return
 
     # load the prompt dataset
-    #prompts = load_prompts(args)
-    prompts = ["star wars film 4 a new hope"]
+    prompts = load_prompts(args)
 
     
     if not os.path.exists(args.data_dir):

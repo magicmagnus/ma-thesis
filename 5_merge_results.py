@@ -49,22 +49,33 @@ if __name__ == '__main__':
     
 
     # specify which experimental setup we want to plot
-    args.num_imgs = 100
-    args.exp_name = 'exp2'
-    args.prompt_dataset = 'coco'
+    args.num_imgs = 2000
+    args.exp_name = 'exp1_mjprompts'
+    args.prompt_dataset = 'mjprompts'
 
     # depending on the experiment, we need merge over all number of channels, as they should also be 
     # specfied in their respeictive csv files
 
     # # for exp1, we just have 2 types of watermarking channels
-    # args.dataset_identifier = [f'num_{args.num_imgs}_fpr_0.01_cfg_3.0_wmch_16',
-    #                            f'num_{args.num_imgs}_fpr_0.01_cfg_3.0_wmch_4'] 
+    if 'exp1' in args.exp_name:
+        args.dataset_identifier = [f'num_{args.num_imgs}_fpr_0.01_cfg_3.0_wmch_16_infsteps_50', # flux
+                                   f'num_{args.num_imgs}_fpr_0.01_cfg_0_wmch_16_infsteps_4', # flux_s
+                                   f'num_{args.num_imgs}_fpr_0.01_cfg_3.0_wmch_4_infsteps_50']  # sd
     
     # for exp2, we have 4 types of watermarking channels
-    args.dataset_identifier = [f'num_{args.num_imgs}_fpr_0.01_cfg_3.0_wmch_16', ]
-                            #    f'num_{args.num_imgs}_fpr_0.01_cfg_3.0_wmch_12',
-                            #    f'num_{args.num_imgs}_fpr_0.01_cfg_3.0_wmch_8',
-                            #    f'num_{args.num_imgs}_fpr_0.01_cfg_3.0_wmch_4'] 
+    if 'exp2' in args.exp_name:
+        args.dataset_identifier = [f'num_{args.num_imgs}_fpr_0.01_cfg_3.0_wmch_16',]
+                                #    f'num_{args.num_imgs}_fpr_0.01_cfg_3.0_wmch_12',
+                                #    f'num_{args.num_imgs}_fpr_0.01_cfg_3.0_wmch_8',
+                                #    f'num_{args.num_imgs}_fpr_0.01_cfg_3.0_wmch_4'] 
+
+    # for exp3, we have 5 types of test_inf_steps
+    if 'exp3' in args.exp_name:
+        args.dataset_identifier = [f'num_{args.num_imgs}_fpr_0.01_cfg_3.0_wmch_16_infsteps_4', 
+                                   f'num_{args.num_imgs}_fpr_0.01_cfg_3.0_wmch_16_infsteps_6',
+                                   f'num_{args.num_imgs}_fpr_0.01_cfg_3.0_wmch_16_infsteps_8',
+                                   f'num_{args.num_imgs}_fpr_0.01_cfg_3.0_wmch_16_infsteps_10',
+                                   f'num_{args.num_imgs}_fpr_0.01_cfg_3.0_wmch_16_infsteps_12']
 
     # create the output directories and ffilenames
     args.input_dir = os.path.join('experiments', args.exp_name)

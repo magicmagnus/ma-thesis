@@ -58,7 +58,7 @@ class TRWatermark():
         self.w_channel = w_channel
 
         # Load or generate watermark patterns
-        key_id = f'{self.method}_ch_{self.w_channel}_r_{self.w_radius}_p_{self.w_pattern}_seed_{self.w_seed}_wmch_{self.latent_channels_wm}'
+        key_id = f'{self.method}_ch_{self.w_channel}_r_{self.w_radius}_p_{self.w_pattern}_seed_{self.w_seed}_wmch_{self.latent_channels_wm}_model_{self.model_id}'
         key_path = f'keys/{key_id}.pkl'
 
         if not os.path.exists(key_path):
