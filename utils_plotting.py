@@ -23,14 +23,13 @@ plt.rcParams['font.family'] = 'TeX Gyre Pagella'
 plt.rcParams['mathtext.fontset'] = 'stix'
 
 
-def setup_gridspec_figure(nrows, ncols, fs, title, fs_title, y_adj, title_height_ratio, sp_width=1.5, sp_height=1.5, height_correction=0):
+def setup_gridspec_figure(nrows, ncols, fs, fs_title, y_adj, title_height_ratio, title=None, sp_width=1.5, sp_height=1.5, height_correction=0, wspace=0.05, hspace=0.05):
     """Create figure with gridspec layout and title rows."""
     # Basic layout parameters
     data_height_ratio = 1.0
     height_ratios = [title_height_ratio if i % 2 == 0 else data_height_ratio 
                     for i in range(2 * nrows)]
-    wspace = 0.05
-    hspace = 0.05
+    
 
     # Calculate figure size
     subplot_width = sp_width
@@ -53,7 +52,9 @@ def setup_gridspec_figure(nrows, ncols, fs, title, fs_title, y_adj, title_height
         ax.spines[:].set_visible(False)  # Hide axis lines
         title_axes.append(ax)
     
-    fig.suptitle(title, fontsize=fs_title, fontweight="bold", y=y_adj)
+    if title is not None:
+        fig.suptitle(title, fontsize=fs_title, fontweight="bold", y=y_adj)
+    
     
     return fig, gs, title_axes
 
@@ -478,61 +479,61 @@ def visualize_reversed_latents_spatial_domain(num_channels,
 # dict for saving names of axes/values
 ATTACK_NAME_MAPPING = {
     'gaussian_std': {
-        'name': 'Noise\n(Gaussian std)',
+        'name': 'Noise',
         'x_axis': 'Standard deviation',
         'order': 'high-to-low',
         'cast_to_int': False
     },
+   'gaussian_blur_r': {
+        'name': 'Blur',
+        'x_axis': 'Radius',
+        'order': 'high-to-low',
+        'cast_to_int': True
+    },
     'brightness_factor': {
-        'name': 'Brightness\n(factor)',
+        'name': 'Brightness',
         'x_axis': 'Factor',
         'order': 'high-to-low',
         'cast_to_int': False
     },
-    'crop_scale': {
-        'name': 'Crop&Scale\n(ratio)',
-        'x_axis': 'Crop ratio and scale ratio',
-        'order': 'low-to-high',
-        'cast_to_int': False
-    },
-    'crop': {
-        'name': 'Crop\n(ratio)',
+     'crop': {
+        'name': 'Crop',
         'x_axis': 'Crop ratio',
         'order': 'low-to-high',
         'cast_to_int': False
     },
+    'crop_scale': {
+        'name': 'Crop&Scale',
+        'x_axis': 'Crop ratio and scale ratio',
+        'order': 'low-to-high',
+        'cast_to_int': False
+    },
     'jpeg_ratio': {
-        'name': 'JPEG\n(quality factor)',
+        'name': 'JPEG',
         'x_axis': 'Quality factor', 
         'order': 'low-to-high',
         'cast_to_int': True
     },
     'r_degree': {
-        'name': 'Rotation\n(degrees)',
+        'name': 'Rotation',
         'x_axis': 'Angle',
         'order': 'high-to-low',
         'cast_to_int': True
     },
-    'gaussian_blur_r': {
-        'name': 'Blur\n(radius)',
-        'x_axis': 'Radius',
-        'order': 'high-to-low',
-        'cast_to_int': True
-    },
     'adv_surr_resnet18': {
-        'name': 'Adv. Surr.\nRN18 (eps)',
+        'name': 'Adv. Surr.',
         'x_axis': 'eps = x/255',
         'order': 'high-to-low',
         'cast_to_int': True
     },
     'adv_surr_resnet50': {
-        'name': 'Adv. Surr.\nRN50 (eps)',
+        'name': 'Adv.Surr.',
         'x_axis': 'eps = x/255',
         'order': 'high-to-low',
         'cast_to_int': True
     },
     'adv_embed_klvae8': {	
-        'name': 'Adv. Embed\nKLVAE8 (eps)',
+        'name': 'Adv.Embed.',
         'x_axis': 'eps = x/255',
         'order': 'high-to-low',
         'cast_to_int': True
@@ -576,22 +577,28 @@ ATTACK_NAME_MAPPING = {
 
 MODEL_NAME_MAPPING = {
     'sd': {
-        'name': 'Stable Diffusion v2-1 base',
-        'marker': 'o',
+        'name': 'Stable Diffusion v2.1',
+        'marker': 'D',
         'line': '-',
-        'color': '#1447e6'
+        'color': '#092B8C',
+        'size': 4,
+        'linewidth': 1,
     },
     'flux': {
-        'name': 'FLUX.1 [dev]',
-        'marker': 'o',
+        'name': 'Flux.1 [dev]',
+        'marker': '^',
         'line': '-',
-        'color': '#a800b7'
+        'color': '#00B4D8',
+        'size': 5,
+        'linewidth': 1,
     },
     'flux_s': {
-        'name': 'FLUX.1 [schnell]',
-        'marker': 'o',
+        'name': 'Flux.1 [schnell]',
+        'marker': 'v',
         'line': '-',
-        'color': '#ff04d5'
+        'color': '#6CD874',
+        'size': 5,
+        'linewidth': 1,
     },
 
 }
