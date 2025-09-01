@@ -3,11 +3,11 @@
   "latent_channels_wm": 16,
   
   "dataset_id": "sdprompts",
-  "num_images": 100,
+  "num_images": 1,
   "inf_steps": 4,
   "fpr": 0.01,
   "guidance_scale": 3.0,
-  "test_inf_steps": 12,
+  "test_inf_steps": 4,
   
   "calc_FID": true,
   "calc_CLIP": true,
@@ -20,5 +20,5 @@
 
   "run_name": "prc_default",
 
-  "exp_name": "exp3"
+ "exp_name": "plotting"
 }

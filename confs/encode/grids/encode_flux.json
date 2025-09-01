@@ -1,9 +1,9 @@
 {
   "model_id": "flux",
-  "latent_channels_wm": 12,
+  "latent_channels_wm": 16,
   
-  "dataset_id": "coco",
-  "num_images": 100,
+  "dataset_id": "sdprompts",
+  "num_images": 1,
   "inf_steps": 50,
   "fpr": 0.01,
   "guidance_scale": 3.0,
@@ -42,5 +42,5 @@
 
   "run_name": "grids_default",
 
-  "exp_name": "exp2"
+ "exp_name": "plotting"
 }

@@ -164,6 +164,8 @@ class GSWatermark:
         dtype = self.pipe.text_encoder.dtype
         img = transform_img(img).unsqueeze(0).to(dtype).to(self.device) 
 
+        print(f'inversion with prompt: {prompt}')
+
         img_latents = self.pipe.get_image_latents(img, 
                                                   sample=False, 
                                                   batch_size=1,

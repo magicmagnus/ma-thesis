@@ -2,8 +2,8 @@
   "model_id": "sd",
   "latent_channels_wm": 4,
 
-  "dataset_id": "coco",
-  "num_images": 200,
+  "dataset_id": "sdprompts",
+  "num_images": 1,
   "inf_steps": 50,
   "fpr": 0.01,
   "guidance_scale": 3.0,
@@ -36,5 +36,5 @@
 
   "run_name": "rid_default",
 
-  "exp_name": "exp1"
+  "exp_name": "plotting"
 }

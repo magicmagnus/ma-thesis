@@ -1,12 +1,12 @@
 {
   "model_id": "flux",
-  "latent_channels_wm": 12,
+  "latent_channels_wm": 16,
   
-  "dataset_id": "coco",
-  "num_images": 100,
+  "dataset_id": "sdprompts",
+  "num_images": 10,
   "inf_steps": 50,
   "fpr": 0.01,
-  "guidance_scale": 3.0,
+  "guidance_scale": 7.5,
   "test_inf_steps": 50,
   
   "calc_FID": true,
@@ -20,5 +20,5 @@
 
   "run_name": "gs_default",
 
-  "exp_name": "exp2"
+ "exp_name": "inv_with_prompt"
 }

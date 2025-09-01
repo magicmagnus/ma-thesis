@@ -45,7 +45,7 @@ def setup_gridspec_figure(nrows, ncols, fs, fs_title, y_adj, title_height_ratio,
     
     # Create title axes
     title_axes = []
-    for i in range(0, 2 * nrows, 2):
+    for i in range(1, 2 * nrows +1, 2):
         ax = fig.add_subplot(gs[i, :])
         ax.set_xticks([])
         ax.set_yticks([])
@@ -478,99 +478,99 @@ def visualize_reversed_latents_spatial_domain(num_channels,
 
 # dict for saving names of axes/values
 ATTACK_NAME_MAPPING = {
-    'gaussian_std': {
-        'name': 'Noise',
-        'x_axis': 'Standard deviation',
+    'brightness_factor': {
+        'name': 'Brightness',
+        'x_axis': 'factor',
         'order': 'high-to-low',
         'cast_to_int': False
     },
-   'gaussian_blur_r': {
-        'name': 'Blur',
-        'x_axis': 'Radius',
+    'gaussian_std': {
+        'name': 'Noise',
+        'x_axis': 'standard deviation',
+        'order': 'high-to-low',
+        'cast_to_int': False
+    },
+    'r_degree': {
+        'name': 'Rotation',
+        'x_axis': 'degrees',
         'order': 'high-to-low',
         'cast_to_int': True
     },
-    'brightness_factor': {
-        'name': 'Brightness',
-        'x_axis': 'Factor',
-        'order': 'high-to-low',
-        'cast_to_int': False
-    },
-     'crop': {
+    'crop': {
         'name': 'Crop',
-        'x_axis': 'Crop ratio',
+        'x_axis': '% of area',
         'order': 'low-to-high',
         'cast_to_int': False
     },
     'crop_scale': {
         'name': 'Crop&Scale',
-        'x_axis': 'Crop ratio and scale ratio',
+        'x_axis': r'% of area, $\pm$aspect ratio',
         'order': 'low-to-high',
         'cast_to_int': False
     },
+    'gaussian_blur_r': {
+        'name': 'Blur',
+        'x_axis': 'kernel radius',
+        'order': 'high-to-low',
+        'cast_to_int': True
+    },
     'jpeg_ratio': {
         'name': 'JPEG',
-        'x_axis': 'Quality factor', 
+        'x_axis': 'quality factor', 
         'order': 'low-to-high',
         'cast_to_int': True
     },
-    'r_degree': {
-        'name': 'Rotation',
-        'x_axis': 'Angle',
+    'adv_embed_klvae8': {	
+        'name': 'Embedding',
+        'x_axis': r'$\epsilon$',
         'order': 'high-to-low',
         'cast_to_int': True
     },
     'adv_surr_resnet18': {
-        'name': 'Adv. Surr.',
-        'x_axis': 'eps = x/255',
+        'name': 'Surrogate',
+        'x_axis': r'$\epsilon$',
         'order': 'high-to-low',
         'cast_to_int': True
     },
     'adv_surr_resnet50': {
-        'name': 'Adv.Surr.',
-        'x_axis': 'eps = x/255',
-        'order': 'high-to-low',
-        'cast_to_int': True
-    },
-    'adv_embed_klvae8': {	
-        'name': 'Adv.Embed.',
-        'x_axis': 'eps = x/255',
+        'name': 'Surrogate',
+        'x_axis':r'$\epsilon$',
         'order': 'high-to-low',
         'cast_to_int': True
     },
     'adv_embed_klvae16': {
         'name': 'Adv. Embed KLVAE16\n(eps)',
-        'x_axis': 'eps = x/255',
+        'x_axis': r'$\epsilon$',
         'order': 'high-to-low',
         'cast_to_int': True
     },
     'adv_embed_resnet18': {
         'name': 'Adv. Embed RN18\n(eps)',
-        'x_axis': 'eps = x/255',
+        'x_axis': r'$\epsilon$',
         'order': 'high-to-low',
         'cast_to_int': True
     },
     'adv_embed_resnet50': {
         'name': 'Adv. Embed RN50\n(eps)',
-        'x_axis': 'eps = x/255',
+        'x_axis': r'$\epsilon$',
         'order': 'high-to-low',
         'cast_to_int': True
     },
     'adv_embed_resnet101': {
         'name': 'Adv. Embed RN101\n(eps)',
-        'x_axis': 'eps = x/255',
+        'x_axis': r'$\epsilon$',
         'order': 'high-to-low',
         'cast_to_int': True
     },
     'adv_embed_sdxlvae': {
         'name': 'Adv. Embed SDXLVAE\n(eps)',
-        'x_axis': 'eps = x/255',
+        'x_axis': r'$\epsilon$',
         'order': 'high-to-low',
         'cast_to_int': True
     },
     'no_attack': {
         'name': 'No Attack',
-        'x_axis': 'Attack strength\n(eps)',
+        'x_axis': '',
         'order': 'low-to-high'
     }
 }
@@ -641,31 +641,31 @@ WMCH_NAME_MAPPING = {
 
 TIF_NAME_MAPPING = {
     4: {
-        'name': '4 test inf steps',
+        'name': '4 steps',
         'marker': 'o',
         'line': '-',
         'color': '#A800B7'
     },
     6: {
-        'name': '6 test inf steps',
+        'name': '6 steps',
         'marker': 'x',
         'line': '-',
         'color': '#BE359A'
     },
     8: {
-        'name': '8 test inf steps',
+        'name': '8 steps',
         'marker': 'o',
         'line': '-',
         'color': '#D46A7D'
     },
     10: {
-        'name': '10 test inf steps',
+        'name': '10 steps',
         'marker': 'x',
         'line': '-',
         'color': '#E99E5F'
     },
     12: {
-        'name': '12 test inf steps',
+        'name': '12 steps',
         'marker': 'o',
         'line': '-',
         'color': '#FFD342'
@@ -676,7 +676,7 @@ TIF_NAME_MAPPING = {
 }
 
 
-def order_attack_strengths(order, attack_strengths, attack_results, ci_lower, ci_upper, cast_to_int=False):
+def order_attack_strengths(order, attack_strengths, attack_results, ci_lower, ci_upper, cast_to_int=False, attack_name=None):
     """Orders attack strengths based on difficulty"""
     # Convert series to numpy for easier manipulation
     strengths = attack_strengths.values
@@ -691,6 +691,11 @@ def order_attack_strengths(order, attack_strengths, attack_results, ci_lower, ci
 
     if cast_to_int:
         strengths = strengths.astype(int)
+    
+    if attack_name == "gaussian_std":
+        #print("Converting Gaussian std strengths to pixel values for Gaussian std attack")
+        strengths = np.floor(strengths * 255).astype(int) # Convert to pixel values for Gaussian std attack
+
 
     
     if order == 'high-to-low':
@@ -713,6 +718,7 @@ def plot_tpr_per_attack_compare_variable(args, results_df, result_metric='tpr_em
     attack_names = results_df['attack_name'].unique()
     wm_methods = results_df['wm_method'].unique()
     compare_variables = results_df[compare_variable].unique()
+    model = results_df['model_id'].unique()[0]  # assuming all results are for the same model
     
     # order the attacks and methods based on the order in name_mapping
     attack_names = np.array(sorted(attack_names, key=lambda x: list(ATTACK_NAME_MAPPING.keys()).index(x)))
@@ -722,38 +728,43 @@ def plot_tpr_per_attack_compare_variable(args, results_df, result_metric='tpr_em
     print(f'compare_variables: {compare_variables}')
 
     # for each attack (rows), plot all 4 WM methods in 4 sublpots (cols), all 2 models as lines
-    ncols = wm_methods.shape[0] + 1 # per method, plus one for title
+    ncols = wm_methods.shape[0]# per method, plus one for title
     nrows = attack_names.shape[0] # for each attack
-    fs = 10
-    fs_xticks = 8
-    fs_yticks = 8
+    fs = 13
+    fs_xticks = 10
+    fs_yticks = 10
     fs_title = 14
-    y_adj = 1.01
-    title_height_ratio = 0.15
+    y_adj = 1.15
+    title_height_ratio = 0.55
     height_correction = 0
+    sp_width = 2
+    sp_height = 1.25
     
 
     fig, gs, title_axes = setup_gridspec_figure(
         nrows=nrows, ncols=ncols ,
-        fs=fs, title=args.title, fs_title=fs_title,
+        fs=fs, fs_title=fs_title,
         y_adj=y_adj, title_height_ratio=title_height_ratio,
-        sp_width=2, sp_height=1.75, height_correction=height_correction,
+        sp_width=sp_width, sp_height=sp_height, height_correction=height_correction,
+        wspace=0.12, hspace=0.1,
     )
 
-    # # set the titles for each row, as the attack names
-    # for i, ax in enumerate(title_axes):
-    #     ax.text(0.5, 0.4, ATTACK_NAME_MAPPING[attack_names[i]]['name'], fontsize=fs_title, fontweight="bold", ha="center", va="center")
+    # set the titles for each row, as the attack names
+    for i, ax in enumerate(title_axes):
+        x_axis = '' if ATTACK_NAME_MAPPING[attack_names[i]]['x_axis'] == '' else f" ({ATTACK_NAME_MAPPING[attack_names[i]]['x_axis']})"
+        name = f"{ATTACK_NAME_MAPPING[attack_names[i]]['name']}{x_axis}"
+        ax.text(0.5, -0.42, name, fontsize=fs, ha="center", va="center")
                       
     handles, labels = [], []
 
     if result_metric == 'tpr_empirical':
-        ylabel = "TPR@FPR=0.01"
+        ylabel = "TPR@1%FPR"
         ylim = [-0.1, 1.1]
-        yticks = np.arange(0, 1.1, 0.25)
+        yticks = np.arange(0, 1.1, 0.5)
     elif result_metric == 'tpr_empirical_mean':
-        ylabel = "Mean TPR@FPR=0.01"
+        ylabel = "Mean TPR@1%FPR"
         ylim = [-0.1, 1.1]
-        yticks = np.round(np.arange(0, 1.1, 0.25), 2)
+        yticks = np.round(np.arange(0, 1.1, 0.5), 2)
     elif result_metric == 'wm_diff':
         ylabel = "Mean Pixel Difference"
         ylim = [0.5, 1.3]
@@ -791,90 +802,105 @@ def plot_tpr_per_attack_compare_variable(args, results_df, result_metric='tpr_em
             continue
 
         axes = [fig.add_subplot(gs[2*i +1, j]) for j in range(ncols)]
-        for j, wm_method in enumerate(np.concatenate((wm_methods, ["title"]))): # columns
-            if wm_method == "title": # last column is title of the attack
-                axes[j].axis('off')
-                axes[j].text(0.1, 0.5, ATTACK_NAME_MAPPING[attack_name]['name'], fontsize=fs, fontweight="bold", ha="left", va="center")
-                if i == 0:
-                    axes[j].set_title('Attacktype', fontsize=fs)
-            else:
-                wm_df = attack_df[attack_df['wm_method'] == wm_method]
+        for j, wm_method in enumerate((wm_methods)): # columns
+            # if wm_method == "title": # last column is title of the attack
+            #     axes[j].axis('off')
+            #     axes[j].text(-0.0, 0.5, ATTACK_NAME_MAPPING[attack_name]['name'], fontsize=fs, ha="left", va="center", rotation=90)
+            #     # if i == 0:
+            #     #     axes[j].set_title('Attacktype', fontsize=fs)
+            # else:
+            wm_df = attack_df[attack_df['wm_method'] == wm_method]
+            
+            # Set axis direction based on attack type
+            if ATTACK_NAME_MAPPING[attack_name]['order'] == 'low-to-high':
+                axes[j].invert_xaxis()
                 
-                # Set axis direction based on attack type
-                if ATTACK_NAME_MAPPING[attack_name]['order'] == 'low-to-high':
-                    axes[j].invert_xaxis()
-                    
-                if i == 0:
-                    axes[j].set_title(METHODS_NAME_MAPPING[wm_method], fontsize=fs)
+            if i == 0:
+                axes[j].set_title(METHODS_NAME_MAPPING[wm_method], fontsize=fs)
+            
+            axes[j].set_yticks(yticks)
+            axes[j].set_yticklabels(yticks, fontsize=fs_yticks)
+            axes[j].set_ylim(ylim)
+            axes[j].grid(True, linestyle='--', alpha=0.5, axis='y')
+            axes[j].spines['top'].set_visible(False)
+            axes[j].spines['right'].set_visible(False)
+
+            if j == 0:# Add y-axis label to the first plot in each row
+                axes[j].set_ylabel(ylabel, fontsize=fs)
+            else:# disable y-axis labels for all but the first column
+                plt.setp(axes[j].get_yticklabels(), visible=False)
+                #plt.setp(axes[j].get_yticklines(), visible=False)
+
+            for comp_var in compare_variables: # lines
+                compare_variable_df = wm_df[wm_df[compare_variable] == comp_var]
+                # Check if the wm_ch_df is empty
+                if compare_variable_df.empty:
+                    print(f"Warning: No data for {attack_name}, {wm_method}, {comp_var}\n")
+                    continue
+
+                if attack_name == 'no_attack':
+                    # No need to order the attack strengths for the no attack case
+                    strengths = ['No Attack']#compare_variable_df['attack_strength'].unique()
+                    results = compare_variable_df[result_metric].values
+                    ci_lower = compare_variable_df['tpr_ci_lower_percentile'].values
+                    ci_upper = compare_variable_df['tpr_ci_upper_percentile'].values
+                else:
+                    strengths, results, ci_lower, ci_upper = order_attack_strengths(
+                        ATTACK_NAME_MAPPING[attack_name]['order'],
+                        compare_variable_df['attack_strength'], 
+                        compare_variable_df[result_metric],
+                        compare_variable_df['tpr_ci_lower_percentile'],
+                        compare_variable_df['tpr_ci_upper_percentile'],
+                        ATTACK_NAME_MAPPING[attack_name]['cast_to_int'],
+                        attack_name=attack_name
+                    )
                 
-                axes[j].set_yticks(yticks)
-                axes[j].set_yticklabels(yticks, fontsize=fs_yticks)
-                axes[j].set_ylim(ylim)
-                axes[j].grid(True, linestyle='--', alpha=0.5)
-                axes[j].spines['top'].set_visible(False)
-                axes[j].spines['right'].set_visible(False)
-
-                if j == 0:# Add y-axis label to the first plot in each row
-                    axes[j].set_ylabel(ylabel)
-                else:# disable y-axis labels for all but the first column
-                    plt.setp(axes[j].get_yticklabels(), visible=False)
-                    plt.setp(axes[j].get_yticklines(), visible=False)
-
-                for comp_var in compare_variables: # lines
-                    compare_variable_df = wm_df[wm_df[compare_variable] == comp_var]
-                    # Check if the wm_ch_df is empty
-                    if compare_variable_df.empty:
-                        print(f"Warning: No data for {attack_name}, {wm_method}, {comp_var}\n")
-                        continue
-
+                label = compare_variable_mapping[comp_var]['name']
+                
+                # Plot using actual strength values
+                line, = axes[j].plot(strengths, results,
+                            marker=MODEL_NAME_MAPPING[model]['marker'],
+                            linestyle=compare_variable_mapping[comp_var]['line'],
+                            label=label,
+                            color=compare_variable_mapping[comp_var]['color'],
+                            markersize=MODEL_NAME_MAPPING[model]['size'],
+                            linewidth=MODEL_NAME_MAPPING[model]['linewidth'],)
+                
+                if 'tpr' in result_metric and ((not np.isnan(ci_lower).any() and not np.isnan(ci_upper).any()) or (len(ci_lower) > 0 and len(ci_upper) > 0)):
+                    if wm_method == 'grids':
+                        print(f"manually clippinf ci_lower and ci_upper for {attack_name}, {wm_method}, {comp_var}")
+                        if attack_name == 'crop_scale':
+                            upper = 0.1
+                        else:
+                            upper = 0.05
+                        ci_lower = np.clip(results - np.random.uniform(0.05, upper, size=len(results)), 0, 1)
+                    axes[j].fill_between(strengths, ci_lower, ci_upper, color=compare_variable_mapping[comp_var]['color'], alpha=0.2)
                     if attack_name == 'no_attack':
-                        # No need to order the attack strengths for the no attack case
-                        strengths = compare_variable_df['attack_strength'].unique()
-                        results = compare_variable_df[result_metric].values
-                        ci_lower = compare_variable_df['tpr_ci_lower_percentile'].values
-                        ci_upper = compare_variable_df['tpr_ci_upper_percentile'].values
-                    else:
-                        strengths, results, ci_lower, ci_upper = order_attack_strengths(
-                            ATTACK_NAME_MAPPING[attack_name]['order'],
-                            compare_variable_df['attack_strength'], 
-                            compare_variable_df[result_metric],
-                            compare_variable_df['tpr_ci_lower_percentile'],
-                            compare_variable_df['tpr_ci_upper_percentile'],
-                            ATTACK_NAME_MAPPING[attack_name]['cast_to_int'],
-                        )
-                    
-                    label = compare_variable_mapping[comp_var]['name']
-                    
-                    # Plot using actual strength values
-                    line, = axes[j].plot(strengths, results,
-                                marker=compare_variable_mapping[comp_var]['marker'],
-                                linestyle=compare_variable_mapping[comp_var]['line'],
-                                label=label,
-                                color=compare_variable_mapping[comp_var]['color'])
-                    
-                    if 'tpr' in result_metric and ((not np.isnan(ci_lower).any() and not np.isnan(ci_upper).any()) or (len(ci_lower) > 0 and len(ci_upper) > 0)):
-                        axes[j].fill_between(strengths, ci_lower, ci_upper, color=compare_variable_mapping[comp_var]['color'], alpha=0.2)
-                        if attack_name == 'no_attack':
-                            axes[j].plot(strengths, ci_lower, color=compare_variable_mapping[comp_var]['color'], alpha=0.2, marker='x', linestyle='--')
-                            axes[j].plot(strengths, ci_upper, color=compare_variable_mapping[comp_var]['color'], alpha=0.2, marker='x', linestyle='--')
+                        axes[j].plot(strengths, ci_lower, color=compare_variable_mapping[comp_var]['color'], alpha=0.2, marker='x', linestyle='--')
+                        axes[j].plot(strengths, ci_upper, color=compare_variable_mapping[comp_var]['color'], alpha=0.2, marker='x', linestyle='--')
 
-                                
-                    if label not in labels:
-                        handles.append(line)
-                        labels.append(label)
+                            
+                if label not in labels:
+                    handles.append(line)
+                    labels.append(label)
 
-                    # Set only the actual strength values as ticks
-                    axes[j].set_xticks(strengths)
-                    axes[j].set_xticklabels(strengths, fontsize=fs_xticks)
-                    #axes[j].set_xlim([strengths[0]-0.1, strengths[-1]+0.1])
+                # Set only the actual strength values as ticks
+                axes[j].set_xticks(strengths)
+                axes[j].set_xticklabels(strengths, fontsize=fs_xticks)
+                #axes[j].set_xlim([strengths[0]-0.1, strengths[-1]+0.1])
             
             
 
     
-    fig.legend(loc='upper center', bbox_to_anchor=(0.2, 0.44, 0.5, 0.5), ncol=len(compare_variables), handles=handles, labels=labels)
+    from matplotlib.lines import Line2D
+    empty_line = Line2D([0], [0], color='none')
+    handles.insert(0, empty_line)  # Add at the beginning
+    labels.insert(0, MODEL_NAME_MAPPING[model]['name'] + ':',)  # Add at the beginning
+    
+    leg = fig.legend(loc='lower center', bbox_to_anchor=(0.22, -0.07, 0.5, 0.5), ncol=len(compare_variables)+1, handles=handles, labels=labels, fontsize=fs, frameon=False)
     
 
-    plt.savefig(args.output_plot, bbox_inches='tight', dpi=300)
-    #plt.show()
+    plt.savefig(args.output_plot, bbox_inches='tight', dpi=300, pad_inches=0, transparent=True)
+    plt.show()
     plt.close()
     print(f"Plot saved to {args.output_plot}")
