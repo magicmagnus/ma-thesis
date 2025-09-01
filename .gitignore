@@ -180,3 +180,5 @@ experiments/*
 *.err
 
 x_imgs_comp/
+
+logs/

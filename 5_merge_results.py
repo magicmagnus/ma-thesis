@@ -21,8 +21,12 @@ def merge_csv_for_dataset_identifier(experiments_dir, dataset_identifiers, promp
                 for file in files:
                     if file.endswith('.csv') and prompt_dataset in root2:
                         file_path = os.path.join(root2, file)
-                        csv_files.append(file_path)
-                        print(f'Found CSV file: {file_path}')
+                        if file_path not in csv_files:
+                            csv_files.append(file_path)
+                            print(f'Found CSV file: {file_path}')
+                        else: 
+                            print(f'Skipping duplicate CSV file: {file_path}')
+                            
 
     if not csv_files:
         print(f'No CSV files found for dataset_identifier: {dataset_identifiers}')
@@ -50,8 +54,8 @@ if __name__ == '__main__':
 
     # specify which experimental setup we want to plot
     args.num_imgs = 2000
-    args.exp_name = 'exp1_mjprompts'
-    args.prompt_dataset = 'mjprompts'
+    args.exp_name = 'exp1_coco'
+    args.prompt_dataset = 'coco'
 
     # depending on the experiment, we need merge over all number of channels, as they should also be 
     # specfied in their respeictive csv files

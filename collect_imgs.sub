@@ -1,0 +1,11 @@
+executable = /usr/bin/bash
+request_disk = 10G
+request_cpus = 1
+request_gpus = 0
+arguments = /fast/mkaut/ma-thesis/collect_imgs.sh
+error = /fast/mkaut/ma-thesis/logs/collect_imgs.$(Process).err
+output = /fast/mkaut/ma-thesis/logs/collect_imgs.$(Process).out
+log = /fast/mkaut/ma-thesis/logs/collect_imgs.$(Process).log
+
+request_memory = 2000
+queue

@@ -1,4 +1,5 @@
 import json
+import os
 import random
 import numpy as np
 import pandas as pd
@@ -17,16 +18,27 @@ from typing import List, Dict, Tuple, Optional
 import warnings
 warnings.filterwarnings('ignore')
 
+# Add palatino-clone fonts to matplotlib
+import matplotlib.font_manager as fm
+for font_file in os.listdir('fonts'):
+    if font_file.endswith('.otf'):
+        fm.fontManager.addfont(os.path.join('fonts', font_file))
+# Configure matplotlib
+plt.rcParams['font.family'] = 'TeX Gyre Pagella'
+plt.rcParams['mathtext.fontset'] = 'stix'
+
 class PromptAnalyzer:
-    def __init__(self, model_name: str = 'all-MiniLM-L6-v2'):
+    def __init__(self, model_name: str = 'all-MiniLM-L6-v2', load = True):
         """
         Initialize the prompt analyzer with a sentence transformer model.
         
         Args:
             model_name: HuggingFace sentence transformer model name
         """
-        print(f"Loading sentence transformer model: {model_name}")
-        self.model = SentenceTransformer(model_name)
+        
+        if load:
+            print(f"Loading sentence transformer model: {model_name}")
+            self.model = SentenceTransformer(model_name)
         self.embeddings = None
         self.cluster_labels = None
         self.prompts_df = None
@@ -138,9 +150,11 @@ class PromptAnalyzer:
     
     
     def visualize_clusters(self, coords: np.ndarray, color_by: str = 'cluster', 
-                          figsize: Tuple[int, int] = (12, 8), save_path: Optional[str] = None,
+                          figsize: Tuple[int, int] = (8, 8), save_path: Optional[str] = None,
                           xlim: Optional[Tuple[float, float]] = None,
                           ylim: Optional[Tuple[float, float]] = None,
+                          show_cluster_id: bool = True,
+                          plot_legend: bool = True,
                           top_n: Optional[int] = 3) -> None:
         """
         Visualize the clustered prompts in 2D space.
@@ -175,7 +189,10 @@ class PromptAnalyzer:
                 cluster_size = cluster_counts[cluster_id]
                 # get the top 2 words for each cluster
                 top_words_list_clusters = create_cluster_wordcloud(analyzer=self, cluster_id=cluster_id, n_top_words=top_n, show=False)
-                label = f'{cluster_id}:{", ".join(top_words_list_clusters)} (n={cluster_size})'
+                if show_cluster_id:
+                    label = f'{cluster_id:02}:\t{", ".join(top_words_list_clusters)} (n={cluster_size})'
+                else:
+                    label = f'{", ".join(top_words_list_clusters)} (n={cluster_size})'
                 
                 scatter = plt.scatter(coords[mask, 0], coords[mask, 1], 
                           c=[colors[i]], label=label, alpha=0.1, s=30)
@@ -183,12 +200,13 @@ class PromptAnalyzer:
                 # Update the alpha for this scatter plot's legend handle
                 plt.setp(scatter, alpha=0.1)
             
-            # Create a custom legend with alpha=1
-            legend = plt.legend(bbox_to_anchor=(1.05, 1), loc='upper left', ncol=1)
-            for handle in legend.legend_handles:
-                handle.set_alpha(1.0)
+            if plot_legend:
+                # Create a custom legend with alpha=1
+                legend = plt.legend(bbox_to_anchor=(1.05, 1), loc='upper left', ncol=1)
+                for handle in legend.legend_handles:
+                    handle.set_alpha(1.0)
                 
-            plt.title('Prompt Clusters')
+            plt.title('Prompts, colored by Clusters', fontsize=16, fontweight='bold', pad=20)
             
         elif color_by == 'dataset':
             datasets = self.prompts_df['dataset'].unique()
@@ -205,20 +223,29 @@ class PromptAnalyzer:
                 # Update the alpha for this scatter plot's legend handle
                 plt.setp(scatter, alpha=0.1)
             
-            # Create a custom legend with alpha=1
-            legend = plt.legend(bbox_to_anchor=(1.05, 1), loc='upper left')
-            for handle in legend.legend_handles:
-                handle.set_alpha(1.0)
-                
-            plt.title('Prompts by Dataset')
+            if plot_legend:
+                # Create a custom legend with alpha=1
+                legend = plt.legend(bbox_to_anchor=(1.05, 1), loc='upper left')
+                for handle in legend.legend_handles:
+                    handle.set_alpha(1.0)
+                    
+            plt.title('Prompts, colored by Dataset', fontsize=16, fontweight='bold')
 
         if xlim:
             plt.xlim(xlim)
         if ylim:
             plt.ylim(ylim)
+
+        # turn top and right spines off
+        plt.gca().spines['top'].set_visible(False)
+        plt.gca().spines['right'].set_visible(False)
+
+        # show 5 each x ans y ticks on axes, but no tick labels
+        plt.xticks(ticks=np.linspace(np.min(coords[:, 0]), np.max(coords[:, 0]), 5), labels=[])
+        plt.yticks(ticks=np.linspace(np.min(coords[:, 1]), np.max(coords[:, 1]), 5), labels=[])
         
-        plt.xlabel('Dimension 1')
-        plt.ylabel('Dimension 2')
+        plt.xlabel('t-SNE Dimension 1', fontsize=14)
+        plt.ylabel('t-SNE Dimension 2', fontsize=14)
         plt.tight_layout()
         
         if save_path:
@@ -302,9 +329,10 @@ def create_wordcloud(texts: List[str], title: str = "",
 
 def create_dataset_wordclouds(datasets: Dict[str, List[str]], 
                             figsize: Tuple[int, int] = (15, 5),
-                            save_dir: Optional[str] = None,
+                            save_path: Optional[str] = None,
                             n_top_words: int = 10,
-                            show = True) -> None:
+                            show = True, 
+                            colormap: str = 'viridis',) -> None:
     """
     Create word clouds for each dataset.
     
@@ -334,12 +362,14 @@ def create_dataset_wordclouds(datasets: Dict[str, List[str]],
                     'may', 'get', 'use', 'new', 'our', 'me',}
         
         wordcloud = WordCloud(
-            width=400, height=300,
+            width=1200, height=800,
             max_words=100,
-            background_color='white',
-            colormap=f'Set{i+1}',
+            background_color=None,
+            colormap=colormap,
             stopwords=stopwords,
-            collocations=False
+            collocations=False,
+            max_font_size=200,
+            mode='RGBA',
         ).generate(combined_text)
         
         if show:
@@ -353,15 +383,22 @@ def create_dataset_wordclouds(datasets: Dict[str, List[str]],
         top_words = sorted_words[:n_top_words]
         top_words_list = [word for word, _ in top_words]
         print(f"\nTop {n_top_words} words in {name}: {', '.join(top_words_list)}")
-
-        if save_dir:
-            individual_path = f"{save_dir}/wordcloud_{name}.png"
-            wordcloud.to_file(individual_path)
-    
+        if save_path:
+            save_dir = os.path.join(save_path, name)
+            if not os.path.exists(save_dir):
+                os.makedirs(save_dir)
+            wordcloud.to_file(os.path.join(save_dir, f'{name}_wordcloud.png'))
+            svg_file = wordcloud.to_svg(embed_font=True)
+            with open(os.path.join(save_dir, f'{name}_wordcloud.svg'), 'w') as f:
+                f.write(svg_file)
+        
     if show:
         plt.tight_layout()
-        if save_dir:
-            plt.savefig(f"{save_dir}/all_wordclouds.png", dpi=300, bbox_inches='tight')
+        if save_path:
+            if not os.path.exists(os.path.dirname(save_path)):
+                os.makedirs(os.path.dirname(save_path))
+        
+                wordcloud.to_svg(save_path)
         plt.show()
 
     return top_words_list
@@ -546,15 +583,17 @@ if __name__ == "__main__":
     with open('coco/captions_val2017.json') as f:
         coco_ds = [ann['caption'] for ann in json.load(f)['annotations']]
 
-    sdprompts_ds = [sample['Prompt'] for sample in load_dataset('Gustavosta/Stable-Diffusion-Prompts')['test']]
+    sdprompts_ds = [sample['Prompt'] for sample in load_dataset('Gustavosta/Stable-Diffusion-Prompts')['train']][:25014]
 
-    mjprompts_ds = [prompt for i in range(5, 6) for prompt in [sample['caption'] for sample in load_dataset('bghira/mj-v52-redux')[f'Collection_{i}']]]
+    mjprompts_ds = [prompt for i in range(1, 30) for prompt in [sample['caption'] for sample in load_dataset('bghira/mj-v52-redux')[f'Collection_{i}']]][:25014]
     
     datasets = {
-        # 'COCO': coco_ds,
+        'COCO': coco_ds,
         'Stable Diffusion Prompts': sdprompts_ds,
-        #'Midjourney Prompts': mjprompts_ds
+        'Midjourney Prompts': mjprompts_ds
     }
+
+    save_dir = 'dataset_comp'
 
     # Initialize analyzer
     analyzer = PromptAnalyzer()
@@ -572,14 +611,24 @@ if __name__ == "__main__":
     coords = analyzer.reduce_dimensions(method='tsne')
 
     # Visualize clusters
-    xlim = (-7, 1.5)
-    ylim = (-2, 8)
-    top_n = 4
-    analyzer.visualize_clusters(coords, color_by='cluster')#, xlim=xlim, ylim=ylim)
-    analyzer.visualize_clusters(coords, color_by='dataset')#, xlim=xlim, ylim=ylim)
+    # xlim = (-7, 1.5)
+    # ylim = (-2, 8)
+    # top_n = 4
+    save_dir = 'dataset_comp'
+    save_path_clusters = os.path.join(save_dir, 'clusters_tsne.svg')
+    save_path_ds = os.path.join(save_dir, 'datasets_tsne.svg')
+    analyzer.visualize_clusters(coords, color_by='cluster', plot_legend = False, save_path = save_path_clusters, show_cluster_id = False)#, xlim=xlim, ylim=ylim)
+    analyzer.visualize_clusters(coords, color_by='dataset', plot_legend = False, save_path = save_path_ds)#, xlim=xlim, ylim=ylim)
 
-    # Create word clouds
-    top_words_list = create_dataset_wordclouds(datasets)
+    save_path_clusters = os.path.join(save_dir, 'clusters_tsne_withLegend.svg')
+    save_path_ds = os.path.join(save_dir, 'datasets_tsne_withLegend.svg')
+    analyzer.visualize_clusters(coords, color_by='cluster', plot_legend = True, save_path = save_path_clusters, show_cluster_id = False)#, xlim=xlim, ylim=ylim)
+    analyzer.visualize_clusters(coords, color_by='dataset', plot_legend = True, save_path = save_path_ds)#, xlim=xlim, ylim=ylim)
+
+
+    # # Create word clouds
+    # save_path = os.path.join(save_dir, 'wordclouds.svg')
+    # top_words_list = create_dataset_wordclouds(datasets, save_path = save_path)
 
     # Analyze cluster composition
     analyze_cluster_composition(analyzer)
