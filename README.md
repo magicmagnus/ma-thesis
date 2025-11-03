@@ -1,3 +1,4 @@
-# ma-thesis
+# Master's Thesis: How Semantic Watermark Robustness generalizes across Generative
+Models
 
-test
+[More info coming soon...]
